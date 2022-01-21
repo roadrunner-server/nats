@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	json "github.com/json-iterator/go"
+	"github.com/goccy/go-json"
 	"github.com/nats-io/nats.go"
 	"github.com/roadrunner-server/sdk/v2/utils"
 )
@@ -113,7 +113,7 @@ func (i *Item) Requeue(headers map[string][]string, _ int64) error {
 	if err != nil {
 		errNak := i.Options.nak()
 		if errNak != nil {
-			return fmt.Errorf("requeue error: %v\n nak error: %v", err, errNak)
+			return fmt.Errorf("requeue error: %w\n nak error: %v", err, errNak)
 		}
 		return err
 	}

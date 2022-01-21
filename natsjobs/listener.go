@@ -1,13 +1,13 @@
 package natsjobs
 
 import (
-	json "github.com/json-iterator/go"
+	"github.com/goccy/go-json"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
 
 // blocking
-func (c *consumer) listenerInit() error {
+func (c *Consumer) listenerInit() error {
 	var err error
 
 	opts := make([]nats.SubOpt, 0)
@@ -25,7 +25,7 @@ func (c *consumer) listenerInit() error {
 	return nil
 }
 
-func (c *consumer) listenerStart() {
+func (c *Consumer) listenerStart() {
 	for {
 		select {
 		case m := <-c.msgCh:

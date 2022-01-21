@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	json "github.com/json-iterator/go"
+	"github.com/goccy/go-json"
 	"github.com/nats-io/nats.go"
 	cfgPlugin "github.com/roadrunner-server/api/v2/plugins/config"
 	"github.com/roadrunner-server/api/v2/plugins/jobs"
@@ -21,7 +21,7 @@ const (
 	reconnectBuffer int    = 20 * 1024 * 1024
 )
 
-type consumer struct {
+type Consumer struct {
 	// system
 	sync.RWMutex
 	log       *zap.Logger
@@ -47,7 +47,7 @@ type consumer struct {
 	deleteStreamOnStop bool
 }
 
-func FromConfig(configKey string, log *zap.Logger, cfg cfgPlugin.Configurer, queue pq.Queue) (*consumer, error) {
+func FromConfig(configKey string, log *zap.Logger, cfg cfgPlugin.Configurer, queue pq.Queue) (*Consumer, error) {
 	const op = errors.Op("new_nats_consumer")
 
 	if !cfg.Has(configKey) {
@@ -110,7 +110,7 @@ func FromConfig(configKey string, log *zap.Logger, cfg cfgPlugin.Configurer, que
 		}
 	}
 
-	cs := &consumer{
+	cs := &Consumer{
 		log:    log,
 		stopCh: make(chan struct{}),
 		queue:  queue,
@@ -131,7 +131,7 @@ func FromConfig(configKey string, log *zap.Logger, cfg cfgPlugin.Configurer, que
 	return cs, nil
 }
 
-func FromPipeline(pipe *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Configurer, queue pq.Queue) (*consumer, error) {
+func FromPipeline(pipe *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Configurer, queue pq.Queue) (*Consumer, error) {
 	const op = errors.Op("new_nats_consumer")
 
 	// if no global section -- error
@@ -185,7 +185,7 @@ func FromPipeline(pipe *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Config
 		}
 	}
 
-	cs := &consumer{
+	cs := &Consumer{
 		log:    log,
 		queue:  queue,
 		stopCh: make(chan struct{}),
@@ -206,7 +206,7 @@ func FromPipeline(pipe *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Config
 	return cs, nil
 }
 
-func (c *consumer) Push(_ context.Context, job *jobs.Job) error {
+func (c *Consumer) Push(_ context.Context, job *jobs.Job) error {
 	const op = errors.Op("nats_consumer_push")
 	if job.Options.Delay > 0 {
 		return errors.E(op, errors.Str("nats doesn't support delayed messages, see: https://github.com/nats-io/nats-streaming-server/issues/324"))
@@ -226,12 +226,12 @@ func (c *consumer) Push(_ context.Context, job *jobs.Job) error {
 	return nil
 }
 
-func (c *consumer) Register(_ context.Context, pipeline *pipeline.Pipeline) error {
+func (c *Consumer) Register(_ context.Context, pipeline *pipeline.Pipeline) error {
 	c.pipeline.Store(pipeline)
 	return nil
 }
 
-func (c *consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
+func (c *Consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
 	start := time.Now()
 	const op = errors.Op("nats_run")
 
@@ -259,7 +259,7 @@ func (c *consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
 	return nil
 }
 
-func (c *consumer) Pause(_ context.Context, p string) {
+func (c *Consumer) Pause(_ context.Context, p string) {
 	start := time.Now()
 
 	pipe := c.pipeline.Load().(*pipeline.Pipeline)
@@ -290,7 +290,7 @@ func (c *consumer) Pause(_ context.Context, p string) {
 	c.log.Debug("pipeline was paused", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
 }
 
-func (c *consumer) Resume(_ context.Context, p string) {
+func (c *Consumer) Resume(_ context.Context, p string) {
 	start := time.Now()
 	pipe := c.pipeline.Load().(*pipeline.Pipeline)
 	if pipe.Name() != p {
@@ -317,7 +317,7 @@ func (c *consumer) Resume(_ context.Context, p string) {
 	c.log.Debug("pipeline was resumed", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
 }
 
-func (c *consumer) State(_ context.Context) (*jobs.State, error) {
+func (c *Consumer) State(_ context.Context) (*jobs.State, error) {
 	pipe := c.pipeline.Load().(*pipeline.Pipeline)
 
 	st := &jobs.State{
@@ -343,7 +343,7 @@ func (c *consumer) State(_ context.Context) (*jobs.State, error) {
 	return st, nil
 }
 
-func (c *consumer) Stop(_ context.Context) error {
+func (c *Consumer) Stop(_ context.Context) error {
 	start := time.Now()
 
 	if atomic.LoadUint32(&c.listeners) > 0 {
@@ -379,7 +379,7 @@ func (c *consumer) Stop(_ context.Context) error {
 
 // private
 
-func (c *consumer) requeue(item *Item) error {
+func (c *Consumer) requeue(item *Item) error {
 	const op = errors.Op("nats_requeue")
 	if item.Options.Delay > 0 {
 		return errors.E(op, errors.Str("nats doesn't support delayed messages, see: https://github.com/nats-io/nats-streaming-server/issues/324"))
@@ -402,7 +402,7 @@ func (c *consumer) requeue(item *Item) error {
 	return nil
 }
 
-func (c *consumer) respond(data []byte, subject string) error {
+func (c *Consumer) respond(data []byte, subject string) error {
 	const op = errors.Op("nats_respond")
 	err := c.conn.Publish(subject, data)
 	if err != nil {
