@@ -6,7 +6,7 @@ require (
 	github.com/json-iterator/go v1.1.12
 	github.com/nats-io/nats.go v1.13.1-0.20211122170419-d7c1d78a50fc
 	github.com/roadrunner-server/api/v2 v2.0.0-rc.2
-	github.com/roadrunner-server/errors v1.1.0
+	github.com/roadrunner-server/errors v1.1.1
 	github.com/roadrunner-server/sdk/v2 v2.0.0-rc.1
 	go.uber.org/zap v1.20.0
 )
