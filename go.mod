@@ -3,7 +3,7 @@ module github.com/roadrunner-server/nats/v2
 go 1.17
 
 require (
-	github.com/goccy/go-json v0.9.4
+	github.com/goccy/go-json v0.9.5
 	github.com/nats-io/nats.go v1.13.1-0.20220121202836-972a071d373d
 	github.com/roadrunner-server/api/v2 v2.10.0
 	github.com/roadrunner-server/errors v1.1.1
