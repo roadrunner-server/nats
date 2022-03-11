@@ -5,9 +5,9 @@ go 1.17
 require (
 	github.com/goccy/go-json v0.9.5
 	github.com/nats-io/nats.go v1.13.1-0.20220121202836-972a071d373d
-	github.com/roadrunner-server/api/v2 v2.10.0
+	github.com/roadrunner-server/api/v2 v2.11.0
 	github.com/roadrunner-server/errors v1.1.1
-	github.com/roadrunner-server/sdk/v2 v2.10.0
+	github.com/roadrunner-server/sdk/v2 v2.10.1
 	go.uber.org/zap v1.21.0
 )
 
@@ -18,5 +18,5 @@ require (
 	github.com/roadrunner-server/tcplisten v1.1.1 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
-	golang.org/x/crypto v0.0.0-20220214200702-86341886e292 // indirect
+	golang.org/x/crypto v0.0.0-20220307211146-efcb8507fb70 // indirect
 )
