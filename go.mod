@@ -18,5 +18,5 @@ require (
 	github.com/roadrunner-server/tcplisten v1.1.1 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
-	golang.org/x/crypto v0.0.0-20220307211146-efcb8507fb70 // indirect
+	golang.org/x/crypto v0.0.0-20220312131142-6068a2e6cfdc // indirect
 )
