@@ -7,7 +7,7 @@ require (
 	github.com/nats-io/nats.go v1.13.1-0.20220308171302-2f2f6968e98d
 	github.com/roadrunner-server/api/v2 v2.14.0
 	github.com/roadrunner-server/errors v1.1.2
-	github.com/roadrunner-server/sdk/v2 v2.12.0
+	github.com/roadrunner-server/sdk/v2 v2.13.0
 	go.uber.org/zap v1.21.0
 )
 
