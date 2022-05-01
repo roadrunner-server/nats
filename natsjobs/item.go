@@ -38,6 +38,9 @@ type Options struct {
 	// Delay defines time duration to delay execution for. Defaults to none.
 	Delay int64 `json:"delay,omitempty"`
 
+	// AutoAck option
+	AutoAck bool `json:"auto_ack"`
+
 	// private
 	deleteAfterAck bool
 	requeueFn      func(*Item) error
@@ -86,6 +89,11 @@ func (i *Item) Context() ([]byte, error) {
 }
 
 func (i *Item) Ack() error {
+	// the message already acknowledged
+	if i.Options.AutoAck {
+		return nil
+	}
+
 	err := i.Options.ack()
 	if err != nil {
 		return err
@@ -102,6 +110,9 @@ func (i *Item) Ack() error {
 }
 
 func (i *Item) Nack() error {
+	if i.Options.AutoAck {
+		return nil
+	}
 	return i.Options.nak()
 }
 
@@ -111,11 +122,20 @@ func (i *Item) Requeue(headers map[string][]string, _ int64) error {
 
 	err := i.Options.requeueFn(i)
 	if err != nil {
-		errNak := i.Options.nak()
-		if errNak != nil {
-			return fmt.Errorf("requeue error: %w\n nak error: %v", err, errNak)
+		// do not nak the message if it was auto acknowledged
+		if !i.Options.AutoAck {
+			errNak := i.Options.nak()
+			if errNak != nil {
+				return fmt.Errorf("requeue error: %w\n nak error: %v", err, errNak)
+			}
 		}
+
 		return err
+	}
+
+	// ack message
+	if i.Options.AutoAck {
+		return nil
 	}
 
 	err = i.Options.ack()

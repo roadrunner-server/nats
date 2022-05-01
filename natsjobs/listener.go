@@ -25,52 +25,76 @@ func (c *Consumer) listenerInit() error {
 	return nil
 }
 
-func (c *Consumer) listenerStart() {
-	for {
-		select {
-		case m := <-c.msgCh:
-			// only JS messages
-			meta, err := m.Metadata()
-			if err != nil {
-				c.log.Info("can't get message metadata", zap.Error(err))
-				continue
+func (c *Consumer) listenerStart() { //nolint:gocognit
+	go func() {
+		for {
+			select {
+			case m := <-c.msgCh:
+				// only JS messages
+				meta, err := m.Metadata()
+				if err != nil {
+					c.log.Info("can't get message metadata", zap.Error(err))
+					continue
+				}
+
+				err = m.InProgress()
+				if err != nil {
+					c.log.Error("failed to send InProgress state", zap.Error(err))
+					continue
+				}
+
+				item := new(Item)
+				err = json.Unmarshal(m.Data, item)
+				if err != nil {
+					c.log.Error("unmarshal nats payload", zap.Error(err))
+					continue
+				}
+
+				// save the ack, nak and requeue functions
+				item.Options.ack = m.Ack
+				item.Options.nak = m.Nak
+				item.Options.requeueFn = c.requeue
+				item.Options.respondFn = c.respond
+				// sequence needed for the requeue
+				item.Options.seq = meta.Sequence.Stream
+
+				// needed only if delete after ack is true
+				if c.deleteAfterAck {
+					item.Options.stream = c.stream
+					item.Options.sub = c.js
+					item.Options.deleteAfterAck = c.deleteAfterAck
+				}
+
+				if item.Priority() == 0 {
+					item.Options.Priority = c.priority
+				}
+
+				if item.Options.AutoAck {
+					c.log.Debug("auto_ack option enabled")
+					err = m.Ack()
+					if err != nil {
+						item = nil
+						c.log.Error("message acknowledge", zap.Error(err))
+						continue
+					}
+
+					if item.Options.deleteAfterAck {
+						err = c.js.DeleteMsg(c.stream, meta.Sequence.Stream)
+						if err != nil {
+							c.log.Error("delete message", zap.Error(err))
+							item = nil
+							continue
+						}
+					}
+
+					item.Options.ack = nil
+					item.Options.nak = nil
+				}
+
+				c.queue.Insert(item)
+			case <-c.stopCh:
+				return
 			}
-
-			err = m.InProgress()
-			if err != nil {
-				c.log.Error("failed to send InProgress state", zap.Error(err))
-				continue
-			}
-
-			item := new(Item)
-			err = json.Unmarshal(m.Data, item)
-			if err != nil {
-				c.log.Error("unmarshal nats payload", zap.Error(err))
-				continue
-			}
-
-			// save the ack, nak and requeue functions
-			item.Options.ack = m.Ack
-			item.Options.nak = m.Nak
-			item.Options.requeueFn = c.requeue
-			item.Options.respondFn = c.respond
-			// sequence needed for the requeue
-			item.Options.seq = meta.Sequence.Stream
-
-			// needed only if delete after ack is true
-			if c.deleteAfterAck {
-				item.Options.stream = c.stream
-				item.Options.sub = c.js
-				item.Options.deleteAfterAck = c.deleteAfterAck
-			}
-
-			if item.Priority() == 0 {
-				item.Options.Priority = c.priority
-			}
-
-			c.queue.Insert(item)
-		case <-c.stopCh:
-			return
 		}
-	}
+	}()
 }

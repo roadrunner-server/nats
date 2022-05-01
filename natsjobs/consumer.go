@@ -253,7 +253,7 @@ func (c *Consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
 		return errors.E(op, err)
 	}
 
-	go c.listenerStart()
+	c.listenerStart()
 
 	c.log.Debug("pipeline was started", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
 	return nil
@@ -310,7 +310,7 @@ func (c *Consumer) Resume(_ context.Context, p string) {
 		return
 	}
 
-	go c.listenerStart()
+	c.listenerStart()
 
 	atomic.AddUint32(&c.listeners, 1)
 
