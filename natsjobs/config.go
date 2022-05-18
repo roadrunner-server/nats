@@ -12,6 +12,7 @@ const (
 	pipeDeliverNew         string = "deliver_new"
 	pipeRateLimit          string = "rate_limit"
 	pipeDeleteStreamOnStop string = "delete_stream_on_stop"
+	pipeConsumeAll         string = "consume_all"
 )
 
 type config struct {
@@ -19,6 +20,7 @@ type config struct {
 	// NATS URL
 	Addr string `mapstructure:"addr"`
 
+	ConsumeAll         bool   `mapstructure:"consume_all"`
 	Priority           int64  `mapstructure:"priority"`
 	Subject            string `mapstructure:"subject"`
 	Stream             string `mapstructure:"stream"`

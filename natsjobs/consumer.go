@@ -24,11 +24,12 @@ const (
 type Consumer struct {
 	// system
 	sync.RWMutex
-	log       *zap.Logger
-	queue     pq.Queue
-	listeners uint32
-	pipeline  atomic.Value
-	stopCh    chan struct{}
+	log        *zap.Logger
+	queue      pq.Queue
+	listeners  uint32
+	pipeline   atomic.Value
+	consumeAll bool
+	stopCh     chan struct{}
 
 	// nats
 	conn  *nats.Conn
@@ -120,6 +121,7 @@ func FromConfig(configKey string, log *zap.Logger, cfg cfgPlugin.Configurer, que
 		priority:           conf.Priority,
 		subject:            conf.Subject,
 		stream:             conf.Stream,
+		consumeAll:         conf.ConsumeAll,
 		deleteAfterAck:     conf.DeleteAfterAck,
 		deleteStreamOnStop: conf.DeleteStreamOnStop,
 		prefetch:           conf.Prefetch,
@@ -193,6 +195,7 @@ func FromPipeline(pipe *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Config
 		conn:               conn,
 		js:                 js,
 		priority:           pipe.Priority(),
+		consumeAll:         pipe.Bool(pipeConsumeAll, false),
 		subject:            pipe.String(pipeSubject, "default"),
 		stream:             pipe.String(pipeStream, "default-stream"),
 		prefetch:           pipe.Int(pipePrefetch, 100),
@@ -399,15 +402,6 @@ func (c *Consumer) requeue(item *Item) error {
 	_ = c.js.DeleteMsg(c.stream, item.Options.seq)
 
 	item = nil
-	return nil
-}
-
-func (c *Consumer) respond(data []byte, subject string) error {
-	const op = errors.Op("nats_respond")
-	err := c.conn.Publish(subject, data)
-	if err != nil {
-		return errors.E(op, err)
-	}
 	return nil
 }
 
