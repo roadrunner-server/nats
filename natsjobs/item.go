@@ -44,7 +44,6 @@ type Options struct {
 	// private
 	deleteAfterAck bool
 	requeueFn      func(*Item) error
-	respondFn      func([]byte, string) error
 	ack            func(...nats.AckOpt) error
 	nak            func(...nats.AckOpt) error
 	stream         string
@@ -153,6 +152,6 @@ func (i *Item) Requeue(headers map[string][]string, _ int64) error {
 	return nil
 }
 
-func (i *Item) Respond(data []byte, queue string) error {
-	return i.Options.respondFn(data, queue)
+func (i *Item) Respond(_ []byte, _ string) error {
+	return nil
 }

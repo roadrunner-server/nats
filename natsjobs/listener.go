@@ -1,7 +1,6 @@
 package natsjobs
 
 import (
-	"github.com/goccy/go-json"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
@@ -43,8 +42,8 @@ func (c *Consumer) listenerStart() { //nolint:gocognit
 					continue
 				}
 
-				item := new(Item)
-				err = json.Unmarshal(m.Data, item)
+				item := &Item{}
+				err = c.unpack(m.Data, item)
 				if err != nil {
 					c.log.Error("unmarshal nats payload", zap.Error(err))
 					continue
@@ -54,7 +53,6 @@ func (c *Consumer) listenerStart() { //nolint:gocognit
 				item.Options.ack = m.Ack
 				item.Options.nak = m.Nak
 				item.Options.requeueFn = c.requeue
-				item.Options.respondFn = c.respond
 				// sequence needed for the requeue
 				item.Options.seq = meta.Sequence.Stream
 
