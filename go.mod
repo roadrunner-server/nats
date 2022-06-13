@@ -6,7 +6,7 @@ require (
 	github.com/goccy/go-json v0.9.7
 	github.com/google/uuid v1.3.0
 	github.com/nats-io/nats.go v1.16.0
-	github.com/roadrunner-server/api/v2 v2.17.1
+	github.com/roadrunner-server/api/v2 v2.18.0
 	github.com/roadrunner-server/errors v1.1.2
 	github.com/roadrunner-server/sdk/v2 v2.15.0
 	go.uber.org/zap v1.21.0
