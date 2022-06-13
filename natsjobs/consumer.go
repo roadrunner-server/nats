@@ -325,6 +325,7 @@ func (c *Consumer) State(_ context.Context) (*jobs.State, error) {
 
 	st := &jobs.State{
 		Pipeline: pipe.Name(),
+		Priority: uint64(pipe.Priority()),
 		Driver:   pipe.Driver(),
 		Queue:    c.subject,
 		Ready:    ready(atomic.LoadUint32(&c.listeners)),
