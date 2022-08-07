@@ -21,6 +21,13 @@ func (c *Consumer) unpack(data []byte, item *Item) error {
 			uid := uuid.NewString()
 			c.log.Debug("get raw payload", zap.String("assigned ID", uid))
 
+			if isJSONEncoded(data) != nil {
+				data, err = json.Marshal(data)
+				if err != nil {
+					return err
+				}
+			}
+
 			*item = Item{
 				Job:     auto,
 				Ident:   uid,
@@ -39,4 +46,9 @@ func (c *Consumer) unpack(data []byte, item *Item) error {
 	}
 
 	return nil
+}
+
+func isJSONEncoded(data []byte) error {
+	var a any
+	return json.Unmarshal(data, &a)
 }
