@@ -27,7 +27,7 @@ type Consumer struct {
 	log        *zap.Logger
 	queue      pq.Queue
 	listeners  uint32
-	pipeline   atomic.Value
+	pipeline   atomic.Pointer[pipeline.Pipeline]
 	consumeAll bool
 	stopCh     chan struct{}
 
@@ -238,7 +238,7 @@ func (c *Consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
 	start := time.Now()
 	const op = errors.Op("nats_run")
 
-	pipe := c.pipeline.Load().(*pipeline.Pipeline)
+	pipe := c.pipeline.Load()
 	if pipe.Name() != p.Name() {
 		return errors.E(op, errors.Errorf("no such pipeline registered: %s", pipe.Name()))
 	}
@@ -265,7 +265,7 @@ func (c *Consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
 func (c *Consumer) Pause(_ context.Context, p string) {
 	start := time.Now()
 
-	pipe := c.pipeline.Load().(*pipeline.Pipeline)
+	pipe := c.pipeline.Load()
 	if pipe.Name() != p {
 		c.log.Error("no such pipeline", zap.String("pause was requested", p))
 	}
@@ -295,7 +295,7 @@ func (c *Consumer) Pause(_ context.Context, p string) {
 
 func (c *Consumer) Resume(_ context.Context, p string) {
 	start := time.Now()
-	pipe := c.pipeline.Load().(*pipeline.Pipeline)
+	pipe := c.pipeline.Load()
 	if pipe.Name() != p {
 		c.log.Error("no such pipeline", zap.String("resume was requested", p))
 	}
@@ -321,7 +321,7 @@ func (c *Consumer) Resume(_ context.Context, p string) {
 }
 
 func (c *Consumer) State(_ context.Context) (*jobs.State, error) {
-	pipe := c.pipeline.Load().(*pipeline.Pipeline)
+	pipe := c.pipeline.Load()
 
 	st := &jobs.State{
 		Pipeline: pipe.Name(),
@@ -368,7 +368,7 @@ func (c *Consumer) Stop(_ context.Context) error {
 		}
 	}
 
-	pipe := c.pipeline.Load().(*pipeline.Pipeline)
+	pipe := c.pipeline.Load()
 	err := c.conn.Drain()
 	if err != nil {
 		return err
