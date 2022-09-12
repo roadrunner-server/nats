@@ -2,6 +2,7 @@ package natsjobs
 
 import (
 	"context"
+	stderr "errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -92,23 +93,24 @@ func FromConfig(configKey string, log *zap.Logger, cfg cfgPlugin.Configurer, que
 		return nil, errors.E(op, err)
 	}
 
-	si, err := js.StreamInfo(conf.Stream)
+	var si *nats.StreamInfo
+	si, err = js.StreamInfo(conf.Stream)
 	if err != nil {
-		if err.Error() == "nats: stream not found" {
-			// skip
+		if stderr.Is(err, nats.ErrStreamNotFound) {
+			si, err = js.AddStream(&nats.StreamConfig{
+				Name:     conf.Stream,
+				Subjects: []string{conf.Subject},
+			})
+			if err != nil {
+				return nil, errors.E(op, err)
+			}
 		} else {
 			return nil, errors.E(op, err)
 		}
 	}
 
 	if si == nil {
-		_, err = js.AddStream(&nats.StreamConfig{
-			Name:     conf.Stream,
-			Subjects: []string{conf.Subject},
-		})
-		if err != nil {
-			return nil, errors.E(op, err)
-		}
+		return nil, errors.E(op, errors.Str("failed to create a stream"))
 	}
 
 	cs := &Consumer{
@@ -134,7 +136,7 @@ func FromConfig(configKey string, log *zap.Logger, cfg cfgPlugin.Configurer, que
 }
 
 func FromPipeline(pipe *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Configurer, queue pq.Queue) (*Consumer, error) {
-	const op = errors.Op("new_nats_consumer")
+	const op = errors.Op("new_nats_pipeline_consumer")
 
 	// if no global section -- error
 	if !cfg.Has(pluginName) {
@@ -168,23 +170,24 @@ func FromPipeline(pipe *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Config
 		return nil, errors.E(op, err)
 	}
 
-	si, err := js.StreamInfo(pipe.String(pipeStream, "default-stream"))
+	var si *nats.StreamInfo
+	si, err = js.StreamInfo(pipe.String(pipeStream, "default-stream"))
 	if err != nil {
-		if err.Error() == "nats: stream not found" {
-			// skip
+		if stderr.Is(err, nats.ErrStreamNotFound) {
+			si, err = js.AddStream(&nats.StreamConfig{
+				Name:     pipe.String(pipeStream, "default-stream"),
+				Subjects: []string{pipe.String(pipeSubject, "default")},
+			})
+			if err != nil {
+				return nil, errors.E(op, err)
+			}
 		} else {
 			return nil, errors.E(op, err)
 		}
 	}
 
 	if si == nil {
-		_, err = js.AddStream(&nats.StreamConfig{
-			Name:     pipe.String(pipeStream, "default-stream"),
-			Subjects: []string{pipe.String(pipeSubject, "default")},
-		})
-		if err != nil {
-			return nil, errors.E(op, err)
-		}
+		return nil, errors.E(op, errors.Str("failed to create a stream"))
 	}
 
 	cs := &Consumer{
