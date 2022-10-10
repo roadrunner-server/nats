@@ -9,11 +9,10 @@ import (
 
 	"github.com/goccy/go-json"
 	"github.com/nats-io/nats.go"
-	cfgPlugin "github.com/roadrunner-server/api/v2/plugins/config"
-	"github.com/roadrunner-server/api/v2/plugins/jobs"
-	"github.com/roadrunner-server/api/v2/plugins/jobs/pipeline"
-	"github.com/roadrunner-server/api/v2/pq"
 	"github.com/roadrunner-server/errors"
+	"github.com/roadrunner-server/sdk/v3/plugins/jobs"
+	"github.com/roadrunner-server/sdk/v3/plugins/jobs/pipeline"
+	priorityqueue "github.com/roadrunner-server/sdk/v3/priority_queue"
 	"go.uber.org/zap"
 )
 
@@ -22,11 +21,19 @@ const (
 	reconnectBuffer int    = 20 * 1024 * 1024
 )
 
+type Configurer interface {
+	// UnmarshalKey takes a single key and unmarshal it into a Struct.
+	UnmarshalKey(name string, out any) error
+
+	// Has checks if config section exists.
+	Has(name string) bool
+}
+
 type Consumer struct {
 	// system
 	sync.RWMutex
 	log        *zap.Logger
-	queue      pq.Queue
+	queue      priorityqueue.Queue
 	listeners  uint32
 	pipeline   atomic.Pointer[pipeline.Pipeline]
 	consumeAll bool
@@ -49,7 +56,7 @@ type Consumer struct {
 	deleteStreamOnStop bool
 }
 
-func FromConfig(configKey string, log *zap.Logger, cfg cfgPlugin.Configurer, queue pq.Queue) (*Consumer, error) {
+func FromConfig(configKey string, log *zap.Logger, cfg Configurer, queue priorityqueue.Queue) (*Consumer, error) {
 	const op = errors.Op("new_nats_consumer")
 
 	if !cfg.Has(configKey) {
@@ -135,7 +142,7 @@ func FromConfig(configKey string, log *zap.Logger, cfg cfgPlugin.Configurer, que
 	return cs, nil
 }
 
-func FromPipeline(pipe *pipeline.Pipeline, log *zap.Logger, cfg cfgPlugin.Configurer, queue pq.Queue) (*Consumer, error) {
+func FromPipeline(pipe *pipeline.Pipeline, log *zap.Logger, cfg Configurer, queue priorityqueue.Queue) (*Consumer, error) {
 	const op = errors.Op("new_nats_pipeline_consumer")
 
 	// if no global section -- error

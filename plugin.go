@@ -1,11 +1,10 @@
 package nats
 
 import (
-	"github.com/roadrunner-server/api/v2/plugins/config"
-	"github.com/roadrunner-server/api/v2/plugins/jobs"
-	"github.com/roadrunner-server/api/v2/plugins/jobs/pipeline"
-	priorityqueue "github.com/roadrunner-server/api/v2/pq"
-	"github.com/roadrunner-server/nats/v2/natsjobs"
+	"github.com/roadrunner-server/nats/v3/natsjobs"
+	"github.com/roadrunner-server/sdk/v3/plugins/jobs"
+	"github.com/roadrunner-server/sdk/v3/plugins/jobs/pipeline"
+	priorityqueue "github.com/roadrunner-server/sdk/v3/priority_queue"
 	"go.uber.org/zap"
 )
 
@@ -13,12 +12,20 @@ const (
 	pluginName string = "nats"
 )
 
-type Plugin struct {
-	log *zap.Logger
-	cfg config.Configurer
+type Configurer interface {
+	// UnmarshalKey takes a single key and unmarshal it into a Struct.
+	UnmarshalKey(name string, out any) error
+
+	// Has checks if config section exists.
+	Has(name string) bool
 }
 
-func (p *Plugin) Init(log *zap.Logger, cfg config.Configurer) error {
+type Plugin struct {
+	log *zap.Logger
+	cfg Configurer
+}
+
+func (p *Plugin) Init(log *zap.Logger, cfg Configurer) error {
 	p.log = new(zap.Logger)
 	*p.log = *log
 	p.cfg = cfg
