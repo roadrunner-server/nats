@@ -7,7 +7,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/nats-io/nats.go v1.19.0
 	github.com/roadrunner-server/errors v1.2.0
-	github.com/roadrunner-server/sdk/v3 v3.0.0-beta.4
+	github.com/roadrunner-server/sdk/v3 v3.0.0-beta.5
 	go.uber.org/zap v1.23.0
 )
 
