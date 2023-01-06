@@ -9,10 +9,9 @@ import (
 
 	"github.com/goccy/go-json"
 	"github.com/nats-io/nats.go"
+	"github.com/roadrunner-server/api/v3/plugins/v1/jobs"
+	pq "github.com/roadrunner-server/api/v3/plugins/v1/priority_queue"
 	"github.com/roadrunner-server/errors"
-	"github.com/roadrunner-server/sdk/v3/plugins/jobs"
-	"github.com/roadrunner-server/sdk/v3/plugins/jobs/pipeline"
-	priorityqueue "github.com/roadrunner-server/sdk/v3/priority_queue"
 	"go.uber.org/zap"
 )
 
@@ -33,9 +32,9 @@ type Consumer struct {
 	// system
 	sync.RWMutex
 	log        *zap.Logger
-	queue      priorityqueue.Queue
+	queue      pq.Queue
 	listeners  uint32
-	pipeline   atomic.Pointer[pipeline.Pipeline]
+	pipeline   atomic.Pointer[jobs.Pipeline]
 	consumeAll bool
 	stopCh     chan struct{}
 
@@ -56,7 +55,7 @@ type Consumer struct {
 	deleteStreamOnStop bool
 }
 
-func FromConfig(configKey string, log *zap.Logger, cfg Configurer, queue priorityqueue.Queue) (*Consumer, error) {
+func FromConfig(configKey string, log *zap.Logger, cfg Configurer, queue pq.Queue) (*Consumer, error) {
 	const op = errors.Op("new_nats_consumer")
 
 	if !cfg.Has(configKey) {
@@ -142,7 +141,7 @@ func FromConfig(configKey string, log *zap.Logger, cfg Configurer, queue priorit
 	return cs, nil
 }
 
-func FromPipeline(pipe *pipeline.Pipeline, log *zap.Logger, cfg Configurer, queue priorityqueue.Queue) (*Consumer, error) {
+func FromPipeline(pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, queue pq.Queue) (*Consumer, error) {
 	const op = errors.Op("new_nats_pipeline_consumer")
 
 	// if no global section -- error
@@ -219,9 +218,9 @@ func FromPipeline(pipe *pipeline.Pipeline, log *zap.Logger, cfg Configurer, queu
 	return cs, nil
 }
 
-func (c *Consumer) Push(_ context.Context, job *jobs.Job) error {
+func (c *Consumer) Push(_ context.Context, job jobs.Job) error {
 	const op = errors.Op("nats_consumer_push")
-	if job.Options.Delay > 0 {
+	if job.Delay() > 0 {
 		return errors.E(op, errors.Str("nats doesn't support delayed messages, see: https://github.com/nats-io/nats-streaming-server/issues/324"))
 	}
 
@@ -239,16 +238,16 @@ func (c *Consumer) Push(_ context.Context, job *jobs.Job) error {
 	return nil
 }
 
-func (c *Consumer) Register(_ context.Context, pipeline *pipeline.Pipeline) error {
-	c.pipeline.Store(pipeline)
+func (c *Consumer) Register(_ context.Context, p jobs.Pipeline) error {
+	c.pipeline.Store(&p)
 	return nil
 }
 
-func (c *Consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
+func (c *Consumer) Run(_ context.Context, p jobs.Pipeline) error {
 	start := time.Now()
 	const op = errors.Op("nats_run")
 
-	pipe := c.pipeline.Load()
+	pipe := *c.pipeline.Load()
 	if pipe.Name() != p.Name() {
 		return errors.E(op, errors.Errorf("no such pipeline registered: %s", pipe.Name()))
 	}
@@ -275,7 +274,7 @@ func (c *Consumer) Run(_ context.Context, p *pipeline.Pipeline) error {
 func (c *Consumer) Pause(_ context.Context, p string) {
 	start := time.Now()
 
-	pipe := c.pipeline.Load()
+	pipe := *c.pipeline.Load()
 	if pipe.Name() != p {
 		c.log.Error("no such pipeline", zap.String("pause was requested", p))
 	}
@@ -305,7 +304,7 @@ func (c *Consumer) Pause(_ context.Context, p string) {
 
 func (c *Consumer) Resume(_ context.Context, p string) {
 	start := time.Now()
-	pipe := c.pipeline.Load()
+	pipe := *c.pipeline.Load()
 	if pipe.Name() != p {
 		c.log.Error("no such pipeline", zap.String("resume was requested", p))
 	}
@@ -331,7 +330,7 @@ func (c *Consumer) Resume(_ context.Context, p string) {
 }
 
 func (c *Consumer) State(_ context.Context) (*jobs.State, error) {
-	pipe := c.pipeline.Load()
+	pipe := *c.pipeline.Load()
 
 	st := &jobs.State{
 		Pipeline: pipe.Name(),
@@ -378,7 +377,7 @@ func (c *Consumer) Stop(_ context.Context) error {
 		}
 	}
 
-	pipe := c.pipeline.Load()
+	pipe := *c.pipeline.Load()
 	err := c.conn.Drain()
 	if err != nil {
 		return err
