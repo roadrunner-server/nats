@@ -4,7 +4,7 @@ import (
 	"github.com/roadrunner-server/api/v3/plugins/v1/jobs"
 	pq "github.com/roadrunner-server/api/v3/plugins/v1/priority_queue"
 	"github.com/roadrunner-server/errors"
-	"github.com/roadrunner-server/nats/v3/natsjobs"
+	"github.com/roadrunner-server/nats/v4/natsjobs"
 	"go.uber.org/zap"
 )
 
