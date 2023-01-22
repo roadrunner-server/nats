@@ -12,16 +12,12 @@ import (
 type Item struct {
 	// Job contains name of job broker (usually PHP class).
 	Job string `json:"job"`
-
 	// Ident is unique identifier of the job, should be provided from outside
 	Ident string `json:"id"`
-
 	// Payload is string data (usually JSON) passed to Job broker.
 	Payload string `json:"payload"`
-
 	// Headers with key-values pairs
 	Headers map[string][]string `json:"headers"`
-
 	// Options contains set of PipelineOptions specific to job execution. Can be empty.
 	Options *Options `json:"options,omitempty"`
 }
@@ -31,13 +27,10 @@ type Options struct {
 	// Priority is job priority, default - 10
 	// pointer to distinguish 0 as a priority and nil as priority not set
 	Priority int64 `json:"priority"`
-
 	// Pipeline manually specified pipeline.
 	Pipeline string `json:"pipeline,omitempty"`
-
 	// Delay defines time duration to delay execution for. Defaults to none.
 	Delay int64 `json:"delay,omitempty"`
-
 	// AutoAck option
 	AutoAck bool `json:"auto_ack"`
 

@@ -12,7 +12,7 @@ const (
 	auto string = "deduced_by_rr"
 )
 
-func (c *Consumer) unpack(data []byte, item *Item) error {
+func (c *Driver) unpack(data []byte, item *Item) error {
 	err := json.Unmarshal(data, item)
 	if err != nil {
 		if c.consumeAll {
