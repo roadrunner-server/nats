@@ -6,7 +6,7 @@ import (
 )
 
 // blocking
-func (c *Consumer) listenerInit() error {
+func (c *Driver) listenerInit() error {
 	var err error
 
 	opts := make([]nats.SubOpt, 0)
@@ -24,7 +24,7 @@ func (c *Consumer) listenerInit() error {
 	return nil
 }
 
-func (c *Consumer) listenerStart() { //nolint:gocognit
+func (c *Driver) listenerStart() { //nolint:gocognit
 	go func() {
 		for {
 			select {

@@ -9,8 +9,8 @@ import (
 
 	"github.com/goccy/go-json"
 	"github.com/nats-io/nats.go"
-	"github.com/roadrunner-server/api/v3/plugins/v1/jobs"
-	pq "github.com/roadrunner-server/api/v3/plugins/v1/priority_queue"
+	"github.com/roadrunner-server/api/v4/plugins/v1/jobs"
+	pq "github.com/roadrunner-server/api/v4/plugins/v1/priority_queue"
 	"github.com/roadrunner-server/errors"
 	"go.uber.org/zap"
 )
@@ -20,15 +20,16 @@ const (
 	reconnectBuffer int    = 20 * 1024 * 1024
 )
 
+var _ jobs.Driver = (*Driver)(nil)
+
 type Configurer interface {
 	// UnmarshalKey takes a single key and unmarshal it into a Struct.
 	UnmarshalKey(name string, out any) error
-
 	// Has checks if config section exists.
 	Has(name string) bool
 }
 
-type Consumer struct {
+type Driver struct {
 	// system
 	sync.RWMutex
 	log        *zap.Logger
@@ -55,7 +56,7 @@ type Consumer struct {
 	deleteStreamOnStop bool
 }
 
-func FromConfig(configKey string, log *zap.Logger, cfg Configurer, queue pq.Queue) (*Consumer, error) {
+func FromConfig(configKey string, log *zap.Logger, cfg Configurer, pipe jobs.Pipeline, pq pq.Queue, _ chan<- jobs.Commander) (*Driver, error) {
 	const op = errors.Op("new_nats_consumer")
 
 	if !cfg.Has(configKey) {
@@ -119,10 +120,10 @@ func FromConfig(configKey string, log *zap.Logger, cfg Configurer, queue pq.Queu
 		return nil, errors.E(op, errors.Str("failed to create a stream"))
 	}
 
-	cs := &Consumer{
+	cs := &Driver{
 		log:    log,
 		stopCh: make(chan struct{}),
-		queue:  queue,
+		queue:  pq,
 
 		conn:               conn,
 		js:                 js,
@@ -138,10 +139,12 @@ func FromConfig(configKey string, log *zap.Logger, cfg Configurer, queue pq.Queu
 		msgCh:              make(chan *nats.Msg, conf.Prefetch),
 	}
 
+	cs.pipeline.Store(&pipe)
+
 	return cs, nil
 }
 
-func FromPipeline(pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, queue pq.Queue) (*Consumer, error) {
+func FromPipeline(pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq.Queue, _ chan<- jobs.Commander) (*Driver, error) {
 	const op = errors.Op("new_nats_pipeline_consumer")
 
 	// if no global section -- error
@@ -196,9 +199,9 @@ func FromPipeline(pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, queue pq.
 		return nil, errors.E(op, errors.Str("failed to create a stream"))
 	}
 
-	cs := &Consumer{
+	cs := &Driver{
 		log:    log,
-		queue:  queue,
+		queue:  pq,
 		stopCh: make(chan struct{}),
 
 		conn:               conn,
@@ -215,10 +218,12 @@ func FromPipeline(pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, queue pq.
 		msgCh:              make(chan *nats.Msg, pipe.Int(pipePrefetch, 100)),
 	}
 
+	cs.pipeline.Store(&pipe)
+
 	return cs, nil
 }
 
-func (c *Consumer) Push(_ context.Context, job jobs.Job) error {
+func (c *Driver) Push(_ context.Context, job jobs.Job) error {
 	const op = errors.Op("nats_consumer_push")
 	if job.Delay() > 0 {
 		return errors.E(op, errors.Str("nats doesn't support delayed messages, see: https://github.com/nats-io/nats-streaming-server/issues/324"))
@@ -238,12 +243,12 @@ func (c *Consumer) Push(_ context.Context, job jobs.Job) error {
 	return nil
 }
 
-func (c *Consumer) Register(_ context.Context, p jobs.Pipeline) error {
+func (c *Driver) Register(_ context.Context, p jobs.Pipeline) error {
 	c.pipeline.Store(&p)
 	return nil
 }
 
-func (c *Consumer) Run(_ context.Context, p jobs.Pipeline) error {
+func (c *Driver) Run(_ context.Context, p jobs.Pipeline) error {
 	start := time.Now()
 	const op = errors.Op("nats_run")
 
@@ -271,19 +276,18 @@ func (c *Consumer) Run(_ context.Context, p jobs.Pipeline) error {
 	return nil
 }
 
-func (c *Consumer) Pause(_ context.Context, p string) {
+func (c *Driver) Pause(_ context.Context, p string) error {
 	start := time.Now()
 
 	pipe := *c.pipeline.Load()
 	if pipe.Name() != p {
-		c.log.Error("no such pipeline", zap.String("pause was requested", p))
+		return errors.Errorf("no such pipeline: %s", pipe.Name())
 	}
 
 	l := atomic.LoadUint32(&c.listeners)
 	// no active listeners
 	if l == 0 {
-		c.log.Warn("no active listeners, nothing to pause")
-		return
+		return errors.Str("no active listeners, nothing to pause")
 	}
 
 	// remove listener
@@ -300,26 +304,26 @@ func (c *Consumer) Pause(_ context.Context, p string) {
 	c.sub = nil
 
 	c.log.Debug("pipeline was paused", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
+
+	return nil
 }
 
-func (c *Consumer) Resume(_ context.Context, p string) {
+func (c *Driver) Resume(_ context.Context, p string) error {
 	start := time.Now()
 	pipe := *c.pipeline.Load()
 	if pipe.Name() != p {
-		c.log.Error("no such pipeline", zap.String("resume was requested", p))
+		return errors.Errorf("no such pipeline: %s", pipe.Name())
 	}
 
 	l := atomic.LoadUint32(&c.listeners)
 	// listener already active
 	if l == 1 {
-		c.log.Warn("nats listener is already in the active state")
-		return
+		return errors.Str("nats listener is already in the active state")
 	}
 
 	err := c.listenerInit()
 	if err != nil {
-		c.log.Error("failed to resume NATS pipeline", zap.Error(err), zap.String("pipeline", pipe.Name()))
-		return
+		return err
 	}
 
 	c.listenerStart()
@@ -327,9 +331,11 @@ func (c *Consumer) Resume(_ context.Context, p string) {
 	atomic.AddUint32(&c.listeners, 1)
 
 	c.log.Debug("pipeline was resumed", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
+
+	return nil
 }
 
-func (c *Consumer) State(_ context.Context) (*jobs.State, error) {
+func (c *Driver) State(_ context.Context) (*jobs.State, error) {
 	pipe := *c.pipeline.Load()
 
 	st := &jobs.State{
@@ -356,7 +362,7 @@ func (c *Consumer) State(_ context.Context) (*jobs.State, error) {
 	return st, nil
 }
 
-func (c *Consumer) Stop(_ context.Context) error {
+func (c *Driver) Stop(_ context.Context) error {
 	start := time.Now()
 
 	if atomic.LoadUint32(&c.listeners) > 0 {
@@ -392,7 +398,7 @@ func (c *Consumer) Stop(_ context.Context) error {
 
 // private
 
-func (c *Consumer) requeue(item *Item) error {
+func (c *Driver) requeue(item *Item) error {
 	const op = errors.Op("nats_requeue")
 	if item.Options.Delay > 0 {
 		return errors.E(op, errors.Str("nats doesn't support delayed messages, see: https://github.com/nats-io/nats-streaming-server/issues/324"))
