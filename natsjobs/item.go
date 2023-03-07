@@ -1,7 +1,7 @@
 package natsjobs
 
 import (
-	"fmt"
+	stderr "errors"
 	"time"
 
 	"github.com/goccy/go-json"
@@ -55,6 +55,10 @@ func (i *Item) ID() string {
 
 func (i *Item) Priority() int64 {
 	return i.Options.Priority
+}
+
+func (i *Item) Metadata() map[string][]string {
+	return i.Headers
 }
 
 // Body packs job payload into binary payload.
@@ -125,7 +129,7 @@ func (i *Item) Requeue(headers map[string][]string, _ int64) error {
 		if !i.Options.AutoAck {
 			errNak := i.Options.nak()
 			if errNak != nil {
-				return fmt.Errorf("requeue error: %w\n nak error: %v", err, errNak)
+				return stderr.Join(err, errNak)
 			}
 		}
 
