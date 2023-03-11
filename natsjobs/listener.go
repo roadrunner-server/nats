@@ -1,7 +1,11 @@
 package natsjobs
 
 import (
+	"context"
+
 	"github.com/nats-io/nats.go"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/propagation"
 	"go.uber.org/zap"
 )
 
@@ -28,7 +32,12 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 	go func() {
 		for {
 			select {
-			case m := <-c.msgCh:
+			case m, ok := <-c.msgCh:
+				if !ok {
+					c.log.Warn("nats consume channel was closed")
+					return
+				}
+
 				// only JS messages
 				meta, err := m.Metadata()
 				if err != nil {
@@ -44,8 +53,17 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 
 				item := &Item{}
 				err = c.unpack(m.Data, item)
+
+				ctx := c.prop.Extract(context.Background(), propagation.HeaderCarrier(item.Headers))
+				ctx, span := c.tracer.Tracer(tracerName).Start(ctx, "nats_listener")
+
 				if err != nil {
 					c.log.Error("unmarshal nats payload", zap.Error(err))
+					span.SetAttributes(attribute.KeyValue{
+						Key:   "error",
+						Value: attribute.StringValue(err.Error()),
+					})
+					span.End()
 					continue
 				}
 
@@ -73,6 +91,11 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 					if err != nil {
 						item = nil
 						c.log.Error("message acknowledge", zap.Error(err))
+						span.SetAttributes(attribute.KeyValue{
+							Key:   "error",
+							Value: attribute.StringValue(err.Error()),
+						})
+						span.End()
 						continue
 					}
 
@@ -81,6 +104,11 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 						if err != nil {
 							c.log.Error("delete message", zap.Error(err))
 							item = nil
+							span.SetAttributes(attribute.KeyValue{
+								Key:   "error",
+								Value: attribute.StringValue(err.Error()),
+							})
+							span.End()
 							continue
 						}
 					}
@@ -89,7 +117,9 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 					item.Options.nak = nil
 				}
 
+				c.prop.Inject(ctx, propagation.HeaderCarrier(item.Headers))
 				c.queue.Insert(item)
+				span.End()
 			case <-c.stopCh:
 				return
 			}

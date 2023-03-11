@@ -3,7 +3,6 @@ package natsjobs
 import (
 	"context"
 	stderr "errors"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -12,12 +11,18 @@ import (
 	"github.com/roadrunner-server/api/v4/plugins/v1/jobs"
 	pq "github.com/roadrunner-server/api/v4/plugins/v1/priority_queue"
 	"github.com/roadrunner-server/errors"
+	jprop "go.opentelemetry.io/contrib/propagators/jaeger"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
 const (
 	pluginName      string = "nats"
 	reconnectBuffer int    = 20 * 1024 * 1024
+	tracerName      string = "jobs"
 )
 
 var _ jobs.Driver = (*Driver)(nil)
@@ -31,9 +36,10 @@ type Configurer interface {
 
 type Driver struct {
 	// system
-	sync.RWMutex
 	log        *zap.Logger
 	queue      pq.Queue
+	tracer     *sdktrace.TracerProvider
+	prop       propagation.TextMapPropagator
 	listeners  uint32
 	pipeline   atomic.Pointer[jobs.Pipeline]
 	consumeAll bool
@@ -56,7 +62,7 @@ type Driver struct {
 	deleteStreamOnStop bool
 }
 
-func FromConfig(configKey string, log *zap.Logger, cfg Configurer, pipe jobs.Pipeline, pq pq.Queue, _ chan<- jobs.Commander) (*Driver, error) {
+func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logger, cfg Configurer, pipe jobs.Pipeline, pq pq.Queue) (*Driver, error) {
 	const op = errors.Op("new_nats_consumer")
 
 	if !cfg.Has(configKey) {
@@ -67,6 +73,13 @@ func FromConfig(configKey string, log *zap.Logger, cfg Configurer, pipe jobs.Pip
 	if !cfg.Has(pluginName) {
 		return nil, errors.E(op, errors.Str("no global nats configuration, global configuration should contain NATS URL"))
 	}
+
+	if tracer == nil {
+		tracer = sdktrace.NewTracerProvider()
+	}
+
+	prop := propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}, jprop.Jaeger{})
+	otel.SetTextMapPropagator(prop)
 
 	var conf *config
 	err := cfg.UnmarshalKey(configKey, &conf)
@@ -121,6 +134,8 @@ func FromConfig(configKey string, log *zap.Logger, cfg Configurer, pipe jobs.Pip
 	}
 
 	cs := &Driver{
+		tracer: tracer,
+		prop:   prop,
 		log:    log,
 		stopCh: make(chan struct{}),
 		queue:  pq,
@@ -144,7 +159,7 @@ func FromConfig(configKey string, log *zap.Logger, cfg Configurer, pipe jobs.Pip
 	return cs, nil
 }
 
-func FromPipeline(pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq.Queue, _ chan<- jobs.Commander) (*Driver, error) {
+func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq.Queue) (*Driver, error) {
 	const op = errors.Op("new_nats_pipeline_consumer")
 
 	// if no global section -- error
@@ -157,6 +172,13 @@ func FromPipeline(pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq.Que
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
+
+	if tracer == nil {
+		tracer = sdktrace.NewTracerProvider()
+	}
+
+	prop := propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}, jprop.Jaeger{})
+	otel.SetTextMapPropagator(prop)
 
 	conf.InitDefaults()
 
@@ -200,6 +222,8 @@ func FromPipeline(pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq.Que
 	}
 
 	cs := &Driver{
+		tracer: tracer,
+		prop:   prop,
 		log:    log,
 		queue:  pq,
 		stopCh: make(chan struct{}),
@@ -223,13 +247,20 @@ func FromPipeline(pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq.Que
 	return cs, nil
 }
 
-func (c *Driver) Push(_ context.Context, job jobs.Job) error {
+func (c *Driver) Push(ctx context.Context, job jobs.Job) error {
 	const op = errors.Op("nats_consumer_push")
+
+	ctx, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "nats_push")
+	defer span.End()
+
 	if job.Delay() > 0 {
 		return errors.E(op, errors.Str("nats doesn't support delayed messages, see: https://github.com/nats-io/nats-streaming-server/issues/324"))
 	}
 
-	data, err := json.Marshal(job)
+	j := fromJob(job)
+	c.prop.Inject(ctx, propagation.HeaderCarrier(j.Headers))
+
+	data, err := json.Marshal(j)
 	if err != nil {
 		return errors.E(op, err)
 	}
@@ -239,17 +270,15 @@ func (c *Driver) Push(_ context.Context, job jobs.Job) error {
 		return errors.E(op, err)
 	}
 
-	job = nil
 	return nil
 }
 
-func (c *Driver) Register(_ context.Context, p jobs.Pipeline) error {
-	c.pipeline.Store(&p)
-	return nil
-}
+func (c *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
+	start := time.Now().UTC()
 
-func (c *Driver) Run(_ context.Context, p jobs.Pipeline) error {
-	start := time.Now()
+	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "nats_run")
+	defer span.End()
+
 	const op = errors.Op("nats_run")
 
 	pipe := *c.pipeline.Load()
@@ -276,8 +305,11 @@ func (c *Driver) Run(_ context.Context, p jobs.Pipeline) error {
 	return nil
 }
 
-func (c *Driver) Pause(_ context.Context, p string) error {
-	start := time.Now()
+func (c *Driver) Pause(ctx context.Context, p string) error {
+	start := time.Now().UTC()
+
+	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "nats_pause")
+	defer span.End()
 
 	pipe := *c.pipeline.Load()
 	if pipe.Name() != p {
@@ -308,8 +340,12 @@ func (c *Driver) Pause(_ context.Context, p string) error {
 	return nil
 }
 
-func (c *Driver) Resume(_ context.Context, p string) error {
-	start := time.Now()
+func (c *Driver) Resume(ctx context.Context, p string) error {
+	start := time.Now().UTC()
+
+	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "nats_resume")
+	defer span.End()
+
 	pipe := *c.pipeline.Load()
 	if pipe.Name() != p {
 		return errors.Errorf("no such pipeline: %s", pipe.Name())
@@ -335,8 +371,11 @@ func (c *Driver) Resume(_ context.Context, p string) error {
 	return nil
 }
 
-func (c *Driver) State(_ context.Context) (*jobs.State, error) {
+func (c *Driver) State(ctx context.Context) (*jobs.State, error) {
 	pipe := *c.pipeline.Load()
+
+	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "nats_state")
+	defer span.End()
 
 	st := &jobs.State{
 		Pipeline: pipe.Name(),
@@ -362,8 +401,11 @@ func (c *Driver) State(_ context.Context) (*jobs.State, error) {
 	return st, nil
 }
 
-func (c *Driver) Stop(_ context.Context) error {
-	start := time.Now()
+func (c *Driver) Stop(ctx context.Context) error {
+	start := time.Now().UTC()
+
+	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "nats_stop")
+	defer span.End()
 
 	if atomic.LoadUint32(&c.listeners) > 0 {
 		if c.sub != nil {
@@ -390,7 +432,6 @@ func (c *Driver) Stop(_ context.Context) error {
 	}
 
 	c.conn.Close()
-	c.msgCh = nil
 	c.log.Debug("pipeline was stopped", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
 
 	return nil
@@ -440,4 +481,19 @@ func disconnectHandler(log *zap.Logger) func(*nats.Conn, error) {
 
 func ready(r uint32) bool {
 	return r > 0
+}
+
+func fromJob(job jobs.Job) *Item {
+	return &Item{
+		Job:     job.Name(),
+		Ident:   job.ID(),
+		Payload: job.Payload(),
+		Headers: job.Headers(),
+		Options: &Options{
+			Priority: job.Priority(),
+			Pipeline: job.Pipeline(),
+			Delay:    job.Delay(),
+			AutoAck:  job.AutoAck(),
+		},
+	}
 }
