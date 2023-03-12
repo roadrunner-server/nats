@@ -32,7 +32,7 @@ func (c *Driver) unpack(data []byte, item *Item) error {
 				Job:     auto,
 				Ident:   uid,
 				Payload: utils.AsString(data),
-				Headers: nil,
+				Headers: make(map[string][]string, 2),
 				Options: &Options{
 					Priority: 10,
 					Pipeline: auto,
