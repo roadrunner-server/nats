@@ -54,6 +54,10 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 				item := &Item{}
 				err = c.unpack(m.Data, item)
 
+				// set queue and pipeline
+				item.Options.Queue = c.stream
+				item.Options.Pipeline = (*c.pipeline.Load()).Name()
+
 				ctx := c.prop.Extract(context.Background(), propagation.HeaderCarrier(item.Headers))
 				ctx, span := c.tracer.Tracer(tracerName).Start(ctx, "nats_listener")
 

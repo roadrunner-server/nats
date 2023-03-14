@@ -35,7 +35,8 @@ func (c *Driver) unpack(data []byte, item *Item) error {
 				Headers: make(map[string][]string, 2),
 				Options: &Options{
 					Priority: 10,
-					Pipeline: auto,
+					Pipeline: (*c.pipeline.Load()).Name(),
+					Queue:    c.stream,
 				},
 			}
 

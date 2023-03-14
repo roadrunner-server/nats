@@ -32,6 +32,8 @@ type Options struct {
 	Delay int64 `json:"delay,omitempty"`
 	// AutoAck option
 	AutoAck bool `json:"auto_ack"`
+	// Nats JET-stream name
+	Queue string
 
 	// private
 	deleteAfterAck bool
@@ -74,11 +76,13 @@ func (i *Item) Context() ([]byte, error) {
 			Driver   string              `json:"driver"`
 			Headers  map[string][]string `json:"headers"`
 			Pipeline string              `json:"pipeline"`
+			Queue    string              `json:"queue,omitempty"`
 		}{
 			ID:       i.Ident,
 			Job:      i.Job,
 			Driver:   pluginName,
 			Headers:  i.Headers,
+			Queue:    i.Options.Queue,
 			Pipeline: i.Options.Pipeline,
 		},
 	)
