@@ -18,7 +18,7 @@ require (
 )
 
 require (
-	github.com/go-logr/logr v1.2.3 // indirect
+	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/klauspost/compress v1.15.9 // indirect
 	github.com/nats-io/nats-server/v2 v2.7.4 // indirect
@@ -26,7 +26,7 @@ require (
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/roadrunner-server/tcplisten v1.3.0 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
-	go.uber.org/multierr v1.10.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.7.0 // indirect
-	golang.org/x/sys v0.6.0 // indirect
+	golang.org/x/sys v0.7.0 // indirect
 )
