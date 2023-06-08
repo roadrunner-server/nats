@@ -3,32 +3,37 @@ package natsjobs
 import (
 	"context"
 
-	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
 	"go.uber.org/zap"
 )
 
 // blocking
-func (c *Driver) listenerInit() error {
-	var err error
+func (c *Driver) listenerInit() (jetstream.MessagesContext, error) {
+	conf := jetstream.ConsumerConfig{
+		AckPolicy: jetstream.AckExplicitPolicy,
+		RateLimit: c.rateLimit,
+	}
 
-	opts := make([]nats.SubOpt, 0)
 	if c.deliverNew {
-		opts = append(opts, nats.DeliverNew())
+		conf.DeliverPolicy = jetstream.DeliverNewPolicy
 	}
 
-	opts = append(opts, nats.RateLimit(c.rateLimit))
-	opts = append(opts, nats.AckExplicit())
-	c.sub, err = c.js.ChanSubscribe(c.subject, c.msgCh, opts...)
+	cons, err := c.sh.AddConsumer(context.Background(), conf)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	iter, err := cons.Messages()
+	if err != nil {
+		return nil, err
+	}
+
+	return iter, nil
 }
 
-func (c *Driver) listenerStart() { //nolint:gocognit
+func (c *Driver) listenerStart(iter jetstream.MessagesContext) { //nolint:gocognit
 	go func() {
 		for {
 			select {

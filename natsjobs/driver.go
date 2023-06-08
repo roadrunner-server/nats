@@ -2,9 +2,10 @@ package natsjobs
 
 import (
 	"context"
-	stderr "errors"
 	"sync/atomic"
 	"time"
+
+	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/goccy/go-json"
 	"github.com/nats-io/nats.go"
@@ -46,10 +47,10 @@ type Driver struct {
 	stopCh     chan struct{}
 
 	// nats
-	conn  *nats.Conn
-	sub   *nats.Subscription
-	msgCh chan *nats.Msg
-	js    nats.JetStreamContext
+	conn *nats.Conn
+	js   jetstream.JetStream
+	// stream handle
+	sh jetstream.Stream
 
 	// config
 	priority           int64
@@ -108,29 +109,22 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 		return nil, errors.E(op, err)
 	}
 
-	js, err := conn.JetStream()
+	js, err := jetstream.New(conn)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
 
-	var si *nats.StreamInfo
-	si, err = js.StreamInfo(conf.Stream)
+	_, err = js.CreateStream(context.Background(), jetstream.StreamConfig{
+		Name:     conf.Stream,
+		Subjects: []string{conf.Subject},
+	})
 	if err != nil {
-		if stderr.Is(err, nats.ErrStreamNotFound) {
-			si, err = js.AddStream(&nats.StreamConfig{
-				Name:     conf.Stream,
-				Subjects: []string{conf.Subject},
-			})
-			if err != nil {
-				return nil, errors.E(op, err)
-			}
-		} else {
-			return nil, errors.E(op, err)
-		}
+		return nil, errors.E(op, err)
 	}
 
-	if si == nil {
-		return nil, errors.E(op, errors.Str("failed to create a stream"))
+	sh, err := js.Stream(context.Background(), conf.Stream)
+	if err != nil {
+		return nil, errors.E(op, err)
 	}
 
 	cs := &Driver{
@@ -140,6 +134,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 		stopCh: make(chan struct{}),
 		queue:  pq,
 
+		sh:                 sh,
 		conn:               conn,
 		js:                 js,
 		priority:           conf.Priority,
@@ -151,7 +146,6 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 		prefetch:           conf.Prefetch,
 		deliverNew:         conf.DeliverNew,
 		rateLimit:          conf.RateLimit,
-		msgCh:              make(chan *nats.Msg, conf.Prefetch),
 	}
 
 	cs.pipeline.Store(&pipe)
@@ -196,29 +190,22 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.
 		return nil, errors.E(op, err)
 	}
 
-	js, err := conn.JetStream()
+	js, err := jetstream.New(conn)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
 
-	var si *nats.StreamInfo
-	si, err = js.StreamInfo(pipe.String(pipeStream, "default-stream"))
+	_, err = js.CreateStream(context.Background(), jetstream.StreamConfig{
+		Name:     conf.Stream,
+		Subjects: []string{conf.Subject},
+	})
 	if err != nil {
-		if stderr.Is(err, nats.ErrStreamNotFound) {
-			si, err = js.AddStream(&nats.StreamConfig{
-				Name:     pipe.String(pipeStream, "default-stream"),
-				Subjects: []string{pipe.String(pipeSubject, "default")},
-			})
-			if err != nil {
-				return nil, errors.E(op, err)
-			}
-		} else {
-			return nil, errors.E(op, err)
-		}
+		return nil, errors.E(op, err)
 	}
 
-	if si == nil {
-		return nil, errors.E(op, errors.Str("failed to create a stream"))
+	sh, err := js.Stream(context.Background(), conf.Stream)
+	if err != nil {
+		return nil, errors.E(op, err)
 	}
 
 	cs := &Driver{
@@ -229,6 +216,7 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.
 		stopCh: make(chan struct{}),
 
 		conn:               conn,
+		sh:                 sh,
 		js:                 js,
 		priority:           pipe.Priority(),
 		consumeAll:         pipe.Bool(pipeConsumeAll, false),
@@ -239,7 +227,6 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.
 		deliverNew:         pipe.Bool(pipeDeliverNew, false),
 		deleteStreamOnStop: pipe.Bool(pipeDeleteStreamOnStop, false),
 		rateLimit:          uint64(pipe.Int(pipeRateLimit, 1000)),
-		msgCh:              make(chan *nats.Msg, pipe.Int(pipePrefetch, 100)),
 	}
 
 	cs.pipeline.Store(&pipe)
@@ -265,7 +252,7 @@ func (c *Driver) Push(ctx context.Context, job jobs.Job) error {
 		return errors.E(op, err)
 	}
 
-	_, err = c.js.Publish(c.subject, data)
+	_, err = c.js.Publish(ctx, c.subject, data)
 	if err != nil {
 		return errors.E(op, err)
 	}
@@ -294,12 +281,12 @@ func (c *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 	}
 
 	atomic.AddUint32(&c.listeners, 1)
-	err := c.listenerInit()
+	iter, err := c.listenerInit()
 	if err != nil {
 		return errors.E(op, err)
 	}
 
-	c.listenerStart()
+	c.listenerStart(iter)
 
 	c.log.Debug("pipeline was started", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
 	return nil
@@ -419,7 +406,7 @@ func (c *Driver) Stop(ctx context.Context) error {
 	}
 
 	if c.deleteStreamOnStop {
-		err := c.js.DeleteStream(c.stream)
+		err := c.js.DeleteStream(ctx, c.stream)
 		if err != nil {
 			return err
 		}
@@ -450,13 +437,21 @@ func (c *Driver) requeue(item *Item) error {
 		return errors.E(op, err)
 	}
 
-	_, err = c.js.Publish(c.subject, data)
+	// TODO, currently, push is hardcoded
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*2)
+	defer cancel()
+	_, err = c.js.Publish(ctx, c.subject, data)
 	if err != nil {
 		return errors.E(op, err)
 	}
 
 	// delete the old message
-	_ = c.js.DeleteMsg(c.stream, item.Options.seq)
+	ctxDel, cancelDel := context.WithTimeout(context.Background(), time.Minute*2)
+	defer cancelDel()
+	err = c.sh.DeleteMsg(ctxDel, item.Options.seq)
+	if err != nil {
+		return errors.E(op, err)
+	}
 
 	item = nil
 	return nil
