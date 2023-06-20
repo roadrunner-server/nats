@@ -2,11 +2,13 @@ package natsjobs
 
 import (
 	stderr "errors"
+	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/goccy/go-json"
 	"github.com/nats-io/nats.go"
-	"github.com/roadrunner-server/sdk/v4/utils"
+	"github.com/roadrunner-server/errors"
 )
 
 type Item struct {
@@ -17,7 +19,7 @@ type Item struct {
 	// Payload is string data (usually JSON) passed to Job broker.
 	Payload string `json:"payload"`
 	// Headers with key-values pairs
-	Headers map[string][]string `json:"headers"`
+	headers map[string][]string
 	// Options contains set of PipelineOptions specific to job execution. Can be empty.
 	Options *Options `json:"options,omitempty"`
 }
@@ -37,6 +39,7 @@ type Options struct {
 
 	// private
 	deleteAfterAck bool
+	stopped        *uint64
 	requeueFn      func(*Item) error
 	ack            func(...nats.AckOpt) error
 	nak            func(...nats.AckOpt) error
@@ -58,13 +61,17 @@ func (i *Item) Priority() int64 {
 	return i.Options.Priority
 }
 
-func (i *Item) Metadata() map[string][]string {
-	return i.Headers
+func (i *Item) PipelineID() string {
+	return i.Options.Pipeline
+}
+
+func (i *Item) Headers() map[string][]string {
+	return i.headers
 }
 
 // Body packs job payload into binary payload.
 func (i *Item) Body() []byte {
-	return utils.AsBytes(i.Payload)
+	return strToBytes(i.Payload)
 }
 
 // Context packs job context (job, id) into binary payload.
@@ -81,7 +88,7 @@ func (i *Item) Context() ([]byte, error) {
 			ID:       i.Ident,
 			Job:      i.Job,
 			Driver:   pluginName,
-			Headers:  i.Headers,
+			Headers:  i.headers,
 			Queue:    i.Options.Queue,
 			Pipeline: i.Options.Pipeline,
 		},
@@ -95,6 +102,9 @@ func (i *Item) Context() ([]byte, error) {
 }
 
 func (i *Item) Ack() error {
+	if atomic.LoadUint64(i.Options.stopped) == 1 {
+		return errors.Str("failed to acknowledge the JOB, the pipeline is probably stopped")
+	}
 	// the message already acknowledged
 	if i.Options.AutoAck {
 		return nil
@@ -116,6 +126,9 @@ func (i *Item) Ack() error {
 }
 
 func (i *Item) Nack() error {
+	if atomic.LoadUint64(i.Options.stopped) == 1 {
+		return errors.Str("failed to acknowledge the JOB, the pipeline is probably stopped")
+	}
 	if i.Options.AutoAck {
 		return nil
 	}
@@ -123,8 +136,11 @@ func (i *Item) Nack() error {
 }
 
 func (i *Item) Requeue(headers map[string][]string, _ int64) error {
+	if atomic.LoadUint64(i.Options.stopped) == 1 {
+		return errors.Str("failed to acknowledge the JOB, the pipeline is probably stopped")
+	}
 	// overwrite the delay
-	i.Headers = headers
+	i.headers = headers
 
 	err := i.Options.requeueFn(i)
 	if err != nil {
@@ -159,6 +175,18 @@ func (i *Item) Requeue(headers map[string][]string, _ int64) error {
 	return nil
 }
 
-func (i *Item) Respond(_ []byte, _ string) error {
-	return nil
+func bytesToStr(data []byte) string {
+	if len(data) == 0 {
+		return ""
+	}
+
+	return unsafe.String(unsafe.SliceData(data), len(data))
+}
+
+func strToBytes(data string) []byte {
+	if data == "" {
+		return nil
+	}
+
+	return unsafe.Slice(unsafe.StringData(data), len(data))
 }

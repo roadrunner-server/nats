@@ -57,8 +57,9 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 				// set queue and pipeline
 				item.Options.Queue = c.stream
 				item.Options.Pipeline = (*c.pipeline.Load()).Name()
+				item.Options.stopped = &c.stopped
 
-				ctx := c.prop.Extract(context.Background(), propagation.HeaderCarrier(item.Headers))
+				ctx := c.prop.Extract(context.Background(), propagation.HeaderCarrier(item.headers))
 				ctx, span := c.tracer.Tracer(tracerName).Start(ctx, "nats_listener")
 
 				if err != nil {
@@ -121,7 +122,11 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 					item.Options.nak = nil
 				}
 
-				c.prop.Inject(ctx, propagation.HeaderCarrier(item.Headers))
+				if item.headers == nil {
+					item.headers = make(map[string][]string, 1)
+				}
+
+				c.prop.Inject(ctx, propagation.HeaderCarrier(item.headers))
 				c.queue.Insert(item)
 				span.End()
 			case <-c.stopCh:
