@@ -61,7 +61,7 @@ func (i *Item) Priority() int64 {
 	return i.Options.Priority
 }
 
-func (i *Item) PipelineID() string {
+func (i *Item) GroupID() string {
 	return i.Options.Pipeline
 }
 

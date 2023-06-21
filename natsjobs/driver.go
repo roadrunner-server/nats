@@ -497,7 +497,7 @@ func fromJob(job jobs.Message) *Item {
 		headers: job.Headers(),
 		Options: &Options{
 			Priority: job.Priority(),
-			Pipeline: job.PipelineID(),
+			Pipeline: job.GroupID(),
 			Delay:    job.Delay(),
 			AutoAck:  job.AutoAck(),
 		},
