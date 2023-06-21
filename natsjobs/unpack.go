@@ -3,7 +3,6 @@ package natsjobs
 import (
 	"github.com/goccy/go-json"
 	"github.com/google/uuid"
-	"github.com/roadrunner-server/sdk/v4/utils"
 	"go.uber.org/zap"
 )
 
@@ -31,8 +30,8 @@ func (c *Driver) unpack(data []byte, item *Item) error {
 			*item = Item{
 				Job:     auto,
 				Ident:   uid,
-				Payload: utils.AsString(data),
-				Headers: make(map[string][]string, 2),
+				Payload: bytesToStr(data),
+				headers: make(map[string][]string, 2),
 				Options: &Options{
 					Priority: 10,
 					Pipeline: (*c.pipeline.Load()).Name(),

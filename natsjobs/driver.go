@@ -8,8 +8,7 @@ import (
 
 	"github.com/goccy/go-json"
 	"github.com/nats-io/nats.go"
-	"github.com/roadrunner-server/api/v4/plugins/v1/jobs"
-	pq "github.com/roadrunner-server/api/v4/plugins/v1/priority_queue"
+	"github.com/roadrunner-server/api/v4/plugins/v2/jobs"
 	"github.com/roadrunner-server/errors"
 	jprop "go.opentelemetry.io/contrib/propagators/jaeger"
 	"go.opentelemetry.io/otel"
@@ -37,13 +36,14 @@ type Configurer interface {
 type Driver struct {
 	// system
 	log        *zap.Logger
-	queue      pq.Queue
+	queue      jobs.Queue
 	tracer     *sdktrace.TracerProvider
 	prop       propagation.TextMapPropagator
 	listeners  uint32
 	pipeline   atomic.Pointer[jobs.Pipeline]
 	consumeAll bool
 	stopCh     chan struct{}
+	stopped    uint64
 
 	// nats
 	conn  *nats.Conn
@@ -62,7 +62,7 @@ type Driver struct {
 	deleteStreamOnStop bool
 }
 
-func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logger, cfg Configurer, pipe jobs.Pipeline, pq pq.Queue) (*Driver, error) {
+func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logger, cfg Configurer, pipe jobs.Pipeline, pq jobs.Queue) (*Driver, error) {
 	const op = errors.Op("new_nats_consumer")
 
 	if !cfg.Has(configKey) {
@@ -134,11 +134,12 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 	}
 
 	cs := &Driver{
-		tracer: tracer,
-		prop:   prop,
-		log:    log,
-		stopCh: make(chan struct{}),
-		queue:  pq,
+		tracer:  tracer,
+		prop:    prop,
+		log:     log,
+		stopCh:  make(chan struct{}),
+		stopped: 0,
+		queue:   pq,
 
 		conn:               conn,
 		js:                 js,
@@ -159,7 +160,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 	return cs, nil
 }
 
-func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, pq pq.Queue) (*Driver, error) {
+func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, pq jobs.Queue) (*Driver, error) {
 	const op = errors.Op("new_nats_pipeline_consumer")
 
 	// if no global section -- error
@@ -222,11 +223,12 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.
 	}
 
 	cs := &Driver{
-		tracer: tracer,
-		prop:   prop,
-		log:    log,
-		queue:  pq,
-		stopCh: make(chan struct{}),
+		tracer:  tracer,
+		prop:    prop,
+		log:     log,
+		queue:   pq,
+		stopCh:  make(chan struct{}),
+		stopped: 0,
 
 		conn:               conn,
 		js:                 js,
@@ -247,7 +249,7 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.
 	return cs, nil
 }
 
-func (c *Driver) Push(ctx context.Context, job jobs.Job) error {
+func (c *Driver) Push(ctx context.Context, job jobs.Message) error {
 	const op = errors.Op("nats_consumer_push")
 
 	ctx, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "nats_push")
@@ -258,7 +260,7 @@ func (c *Driver) Push(ctx context.Context, job jobs.Job) error {
 	}
 
 	j := fromJob(job)
-	c.prop.Inject(ctx, propagation.HeaderCarrier(j.Headers))
+	c.prop.Inject(ctx, propagation.HeaderCarrier(j.headers))
 
 	data, err := json.Marshal(j)
 	if err != nil {
@@ -407,6 +409,11 @@ func (c *Driver) Stop(ctx context.Context) error {
 	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "nats_stop")
 	defer span.End()
 
+	atomic.StoreUint64(&c.stopped, 1)
+	pipe := *c.pipeline.Load()
+	// remove all items associated with the current pipeline
+	_ = c.queue.Remove(pipe.Name())
+
 	if atomic.LoadUint32(&c.listeners) > 0 {
 		if c.sub != nil {
 			err := c.sub.Drain()
@@ -425,7 +432,6 @@ func (c *Driver) Stop(ctx context.Context) error {
 		}
 	}
 
-	pipe := *c.pipeline.Load()
 	err := c.conn.Drain()
 	if err != nil {
 		return err
@@ -483,15 +489,15 @@ func ready(r uint32) bool {
 	return r > 0
 }
 
-func fromJob(job jobs.Job) *Item {
+func fromJob(job jobs.Message) *Item {
 	return &Item{
 		Job:     job.Name(),
 		Ident:   job.ID(),
 		Payload: job.Payload(),
-		Headers: job.Headers(),
+		headers: job.Headers(),
 		Options: &Options{
 			Priority: job.Priority(),
-			Pipeline: job.Pipeline(),
+			Pipeline: job.GroupID(),
 			Delay:    job.Delay(),
 			AutoAck:  job.AutoAck(),
 		},
