@@ -41,18 +41,37 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 				// only JS messages
 				meta, err := m.Metadata()
 				if err != nil {
+					errn := m.Nak()
+					if errn != nil {
+						c.log.Error("failed to send Nak state", zap.Error(errn), zap.Error(err))
+						continue
+					}
 					c.log.Info("can't get message metadata", zap.Error(err))
 					continue
 				}
 
 				err = m.InProgress()
 				if err != nil {
+					errn := m.Nak()
+					if errn != nil {
+						c.log.Error("failed to send Nak state", zap.Error(errn), zap.Error(err))
+						continue
+					}
 					c.log.Error("failed to send InProgress state", zap.Error(err))
 					continue
 				}
 
 				item := &Item{}
 				err = c.unpack(m.Data, item)
+				if err != nil {
+					errn := m.Term()
+					if errn != nil {
+						c.log.Error("failed to send Term state", zap.Error(errn), zap.Error(err))
+						continue
+					}
+					c.log.Error("unmarshal nats payload, if you're using non RR send, consider using the `consume_all: true` option, message terminated and won't be redelivered", zap.Error(err))
+					continue
+				}
 
 				// set queue and pipeline
 				item.Options.Queue = c.stream
@@ -69,6 +88,14 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 						Value: attribute.StringValue(err.Error()),
 					})
 					span.End()
+					// NAK the message
+					errn := m.Term()
+					if errn != nil {
+						c.log.Error("failed to send Term state", zap.Error(errn), zap.Error(err))
+						continue
+					}
+
+					c.log.Debug("message terminated")
 					continue
 				}
 
