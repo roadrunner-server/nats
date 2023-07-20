@@ -53,6 +53,10 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 
 				item := &Item{}
 				err = c.unpack(m.Data, item)
+				if err != nil {
+					c.log.Error("unmarshal nats payload, if you're using non RR send, consider using the `consume_all: true` option", zap.Error(err))
+					continue
+				}
 
 				// set queue and pipeline
 				item.Options.Queue = c.stream
