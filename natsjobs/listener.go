@@ -73,31 +73,13 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 					continue
 				}
 
+				ctx := c.prop.Extract(context.Background(), propagation.HeaderCarrier(item.headers))
+				ctx, span := c.tracer.Tracer(tracerName).Start(ctx, "nats_listener")
+
 				// set queue and pipeline
 				item.Options.Queue = c.stream
 				item.Options.Pipeline = (*c.pipeline.Load()).Name()
 				item.Options.stopped = &c.stopped
-
-				ctx := c.prop.Extract(context.Background(), propagation.HeaderCarrier(item.headers))
-				ctx, span := c.tracer.Tracer(tracerName).Start(ctx, "nats_listener")
-
-				if err != nil {
-					c.log.Error("unmarshal nats payload", zap.Error(err))
-					span.SetAttributes(attribute.KeyValue{
-						Key:   "error",
-						Value: attribute.StringValue(err.Error()),
-					})
-					span.End()
-					// NAK the message
-					errn := m.Term()
-					if errn != nil {
-						c.log.Error("failed to send Term state", zap.Error(errn), zap.Error(err))
-						continue
-					}
-
-					c.log.Debug("message terminated")
-					continue
-				}
 
 				// save the ack, nak and requeue functions
 				item.Options.ack = m.Ack
