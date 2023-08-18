@@ -9,7 +9,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/nats-io/nats.go v1.28.0
 	github.com/roadrunner-server/api/v4 v4.6.2
-	github.com/roadrunner-server/endure/v2 v2.4.1
+	github.com/roadrunner-server/endure/v2 v2.4.2
 	github.com/roadrunner-server/errors v1.3.0
 	go.opentelemetry.io/contrib/propagators/jaeger v1.17.0
 	go.opentelemetry.io/otel v1.16.0
