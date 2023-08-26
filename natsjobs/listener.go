@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/nats-io/nats.go"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
 	"go.uber.org/zap"
 )
@@ -62,16 +61,7 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 				}
 
 				item := &Item{}
-				err = c.unpack(m.Data, item)
-				if err != nil {
-					errn := m.Term()
-					if errn != nil {
-						c.log.Error("failed to send Term state", zap.Error(errn), zap.Error(err))
-						continue
-					}
-					c.log.Error("unmarshal nats payload, if you're using non RR send, consider using the `consume_all: true` option, message terminated and won't be redelivered", zap.Error(err))
-					continue
-				}
+				c.unpack(m.Data, item)
 
 				ctx := c.prop.Extract(context.Background(), propagation.HeaderCarrier(item.headers))
 				ctx, span := c.tracer.Tracer(tracerName).Start(ctx, "nats_listener")
@@ -105,10 +95,7 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 					if err != nil {
 						item = nil
 						c.log.Error("message acknowledge", zap.Error(err))
-						span.SetAttributes(attribute.KeyValue{
-							Key:   "error",
-							Value: attribute.StringValue(err.Error()),
-						})
+						span.RecordError(err)
 						span.End()
 						continue
 					}
@@ -118,10 +105,7 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 						if err != nil {
 							c.log.Error("delete message", zap.Error(err))
 							item = nil
-							span.SetAttributes(attribute.KeyValue{
-								Key:   "error",
-								Value: attribute.StringValue(err.Error()),
-							})
+							span.RecordError(err)
 							span.End()
 							continue
 						}

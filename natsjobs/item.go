@@ -4,7 +4,6 @@ import (
 	stderr "errors"
 	"sync/atomic"
 	"time"
-	"unsafe"
 
 	"github.com/goccy/go-json"
 	"github.com/nats-io/nats.go"
@@ -17,7 +16,7 @@ type Item struct {
 	// Ident is unique identifier of the job, should be provided from outside
 	Ident string `json:"id"`
 	// Payload is string data (usually JSON) passed to Job broker.
-	Payload string `json:"payload"`
+	Payload []byte `json:"payload"`
 	// Headers with key-values pairs
 	headers map[string][]string
 	// Options contains set of PipelineOptions specific to job execution. Can be empty.
@@ -71,7 +70,7 @@ func (i *Item) Headers() map[string][]string {
 
 // Body packs job payload into binary payload.
 func (i *Item) Body() []byte {
-	return strToBytes(i.Payload)
+	return i.Payload
 }
 
 // Context packs job context (job, id) into binary payload.
@@ -173,20 +172,4 @@ func (i *Item) Requeue(headers map[string][]string, _ int64) error {
 	}
 
 	return nil
-}
-
-func bytesToStr(data []byte) string {
-	if len(data) == 0 {
-		return ""
-	}
-
-	return unsafe.String(unsafe.SliceData(data), len(data))
-}
-
-func strToBytes(data string) []byte {
-	if data == "" {
-		return nil
-	}
-
-	return unsafe.Slice(unsafe.StringData(data), len(data))
 }

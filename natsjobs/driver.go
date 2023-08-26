@@ -8,7 +8,7 @@ import (
 
 	"github.com/goccy/go-json"
 	"github.com/nats-io/nats.go"
-	"github.com/roadrunner-server/api/v4/plugins/v2/jobs"
+	"github.com/roadrunner-server/api/v4/plugins/v3/jobs"
 	"github.com/roadrunner-server/errors"
 	jprop "go.opentelemetry.io/contrib/propagators/jaeger"
 	"go.opentelemetry.io/otel"
@@ -35,15 +35,14 @@ type Configurer interface {
 
 type Driver struct {
 	// system
-	log        *zap.Logger
-	queue      jobs.Queue
-	tracer     *sdktrace.TracerProvider
-	prop       propagation.TextMapPropagator
-	listeners  uint32
-	pipeline   atomic.Pointer[jobs.Pipeline]
-	consumeAll bool
-	stopCh     chan struct{}
-	stopped    uint64
+	log       *zap.Logger
+	queue     jobs.Queue
+	tracer    *sdktrace.TracerProvider
+	prop      propagation.TextMapPropagator
+	listeners uint32
+	pipeline  atomic.Pointer[jobs.Pipeline]
+	stopCh    chan struct{}
+	stopped   uint64
 
 	// nats
 	conn  *nats.Conn
@@ -146,7 +145,6 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 		priority:           conf.Priority,
 		subject:            conf.Subject,
 		stream:             conf.Stream,
-		consumeAll:         conf.ConsumeAll,
 		deleteAfterAck:     conf.DeleteAfterAck,
 		deleteStreamOnStop: conf.DeleteStreamOnStop,
 		prefetch:           conf.Prefetch,
@@ -233,7 +231,6 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.
 		conn:               conn,
 		js:                 js,
 		priority:           pipe.Priority(),
-		consumeAll:         pipe.Bool(pipeConsumeAll, false),
 		subject:            pipe.String(pipeSubject, "default"),
 		stream:             pipe.String(pipeStream, "default-stream"),
 		prefetch:           pipe.Int(pipePrefetch, 100),
