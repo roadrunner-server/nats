@@ -8,7 +8,7 @@ require (
 	github.com/goccy/go-json v0.10.2
 	github.com/google/uuid v1.3.1
 	github.com/nats-io/nats.go v1.28.0
-	github.com/roadrunner-server/api/v4 v4.7.1
+	github.com/roadrunner-server/api/v4 v4.8.0
 	github.com/roadrunner-server/endure/v2 v2.4.2
 	github.com/roadrunner-server/errors v1.3.0
 	go.opentelemetry.io/contrib/propagators/jaeger v1.18.0
