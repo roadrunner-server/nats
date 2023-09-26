@@ -66,7 +66,12 @@ jobs:
 
           docker-compose -f env/docker-compose-nats.yaml up -d
           sleep 30
-          
+          if [ "$(docker ps -q -f status=running -f name=nats_container_name)" ]; then
+          echo "NATS Docker container started successfully."
+             else
+                 echo "Failed to start NATS Docker container."
+                 exit 1
+          fi
           go test -timeout 20m -v -race -cover -tags=debug -failfast -coverpkg=$(cat pkgs.txt) -coverprofile=./coverage-ci/nats.out -covermode=atomic jobs_nats_test.go
           docker compose -f env/docker-compose-nats.yaml down
 

@@ -24,6 +24,6 @@ while ($task = $consumer->waitTask()) {
 
         $task->complete();
     } catch (\Throwable $e) {
-        $rr->error((string)$e);
+        $task->error((string)$e);
     }
 }
