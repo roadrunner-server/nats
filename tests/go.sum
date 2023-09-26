@@ -1112,8 +1112,6 @@ github.com/roadrunner-server/jobs/v4 v4.7.1 h1:FOXRStOA+ASesJlnGYWy7eHICZApjTLdF
 github.com/roadrunner-server/jobs/v4 v4.7.1/go.mod h1:88g3qhFgFMDsSiGwnsK+zarcOCEYkF+jW0bRyRlyI8M=
 github.com/roadrunner-server/logger/v4 v4.2.3 h1:/5QKtUlT1S2p8X5E0BOT3ycBjHZDGUw5gTiC05FpH6Y=
 github.com/roadrunner-server/logger/v4 v4.2.3/go.mod h1:h7r3gzetFR/PbN5lbnWvtw5wklHuOQARh+AviMpuljc=
-github.com/roadrunner-server/nats/v4 v4.5.3 h1:sgTsJ3UqjP5/BnahzF/ielD8odFwWYw0FSg86kFUJdM=
-github.com/roadrunner-server/nats/v4 v4.5.3/go.mod h1:QDEgQAhjtFEm01uuHSPi52P/egsEIpr2OjGLOI5dlcU=
 github.com/roadrunner-server/otel/v4 v4.3.1 h1:mGVg3TpCK27PmFD2fsQQNNATNawMD198iXq9jDa50E0=
 github.com/roadrunner-server/otel/v4 v4.3.1/go.mod h1:5qi0SZdLu2QzIabgW1vdyExHEFROysT0x24iqxhL3q8=
 github.com/roadrunner-server/resetter/v4 v4.0.10 h1:VVf5CoNy90HhZQxjHWp1vxYwv83JolDH5fGnny0g6ck=

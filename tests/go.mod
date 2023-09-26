@@ -1,6 +1,6 @@
 module tests
 
-go 1.21.1
+go 1.21
 
 toolchain go1.21.1
 
@@ -24,6 +24,8 @@ require (
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/zap v1.26.0
 )
+
+replace github.com/roadrunner-server/nats/v4 => ../
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
