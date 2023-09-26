@@ -2,12 +2,12 @@ module github.com/roadrunner-server/nats/v4
 
 go 1.21
 
-toolchain go1.21.0
+toolchain go1.21.1
 
 require (
 	github.com/goccy/go-json v0.10.2
 	github.com/google/uuid v1.3.1
-	github.com/nats-io/nats.go v1.30.0
+	github.com/nats-io/nats.go v1.30.1
 	github.com/roadrunner-server/api/v4 v4.8.0
 	github.com/roadrunner-server/endure/v2 v2.4.2
 	github.com/roadrunner-server/errors v1.3.0
@@ -22,7 +22,7 @@ require (
 	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/klauspost/compress v1.17.0 // indirect
-	github.com/nats-io/nats-server/v2 v2.7.4 // indirect
+	github.com/nats-io/nats-server/v2 v2.10.1 // indirect
 	github.com/nats-io/nkeys v0.4.5 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	go.opentelemetry.io/otel/metric v1.18.0 // indirect
