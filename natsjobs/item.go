@@ -1,12 +1,13 @@
 package natsjobs
 
 import (
+	"context"
 	stderr "errors"
 	"sync/atomic"
 	"time"
 
 	"github.com/goccy/go-json"
-	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"github.com/roadrunner-server/errors"
 )
 
@@ -33,18 +34,18 @@ type Options struct {
 	Delay int64 `json:"delay,omitempty"`
 	// AutoAck option
 	AutoAck bool `json:"auto_ack"`
-	// Nats JET-stream name
+	// Nats JET-streamID name
 	Queue string
 
 	// private
 	deleteAfterAck bool
 	stopped        *uint64
 	requeueFn      func(*Item) error
-	ack            func(...nats.AckOpt) error
-	nak            func(...nats.AckOpt) error
+	ack            func() error
+	nak            func() error
 	stream         string
 	seq            uint64
-	sub            nats.JetStreamContext
+	sub            jetstream.Stream
 }
 
 // DelayDuration returns delay duration in a form of time.Duration.
@@ -115,7 +116,7 @@ func (i *Item) Ack() error {
 	}
 
 	if i.Options.deleteAfterAck {
-		err = i.Options.sub.DeleteMsg(i.Options.stream, i.Options.seq)
+		err = i.Options.sub.DeleteMsg(context.Background(), i.Options.seq)
 		if err != nil {
 			return err
 		}
@@ -143,7 +144,7 @@ func (i *Item) Requeue(headers map[string][]string, _ int64) error {
 
 	err := i.Options.requeueFn(i)
 	if err != nil {
-		// do not nak the message if it was auto acknowledged
+		// do not nak the message if it was an auto acknowledged
 		if !i.Options.AutoAck {
 			errNak := i.Options.nak()
 			if errNak != nil {
@@ -165,7 +166,7 @@ func (i *Item) Requeue(headers map[string][]string, _ int64) error {
 	}
 
 	if i.Options.deleteAfterAck {
-		err = i.Options.sub.DeleteMsg(i.Options.stream, i.Options.seq)
+		err = i.Options.sub.DeleteMsg(context.Background(), i.Options.seq)
 		if err != nil {
 			return err
 		}
