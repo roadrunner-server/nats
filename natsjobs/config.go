@@ -6,7 +6,7 @@ import (
 
 const (
 	pipeSubject            string = "subject"
-	pipeStream             string = "stream"
+	pipeStream             string = "streamID"
 	pipePrefetch           string = "prefetch"
 	pipeDeleteAfterAck     string = "delete_after_ack"
 	pipeDeliverNew         string = "deliver_new"
@@ -21,7 +21,7 @@ type config struct {
 
 	Priority           int64  `mapstructure:"priority"`
 	Subject            string `mapstructure:"subject"`
-	Stream             string `mapstructure:"stream"`
+	Stream             string `mapstructure:"streamID"`
 	Prefetch           int    `mapstructure:"prefetch"`
 	RateLimit          uint64 `mapstructure:"rate_limit"`
 	DeleteAfterAck     bool   `mapstructure:"delete_after_ack"`
@@ -43,7 +43,7 @@ func (c *config) InitDefaults() {
 	}
 
 	if c.Stream == "" {
-		c.Stream = "default-stream"
+		c.Stream = "default-streamID"
 	}
 
 	if c.Subject == "" {
