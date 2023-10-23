@@ -10,17 +10,17 @@ require (
 	github.com/google/uuid v1.3.1
 	github.com/nats-io/nats.go v1.31.0
 	github.com/roadrunner-server/api/v4 v4.9.0
-	github.com/roadrunner-server/config/v4 v4.4.7
+	github.com/roadrunner-server/config/v4 v4.4.8
 	github.com/roadrunner-server/endure/v2 v2.4.3
 	github.com/roadrunner-server/goridge/v3 v3.8.1
-	github.com/roadrunner-server/informer/v4 v4.3.4
-	github.com/roadrunner-server/jobs/v4 v4.7.4
-	github.com/roadrunner-server/logger/v4 v4.2.5
-	github.com/roadrunner-server/nats/v4 v4.5.6
-	github.com/roadrunner-server/otel/v4 v4.3.3
-	github.com/roadrunner-server/resetter/v4 v4.0.12
-	github.com/roadrunner-server/rpc/v4 v4.2.6
-	github.com/roadrunner-server/server/v4 v4.4.3
+	github.com/roadrunner-server/informer/v4 v4.3.6
+	github.com/roadrunner-server/jobs/v4 v4.7.5
+	github.com/roadrunner-server/logger/v4 v4.2.6
+	github.com/roadrunner-server/nats/v4 v4.5.7
+	github.com/roadrunner-server/otel/v4 v4.3.4
+	github.com/roadrunner-server/resetter/v4 v4.0.13
+	github.com/roadrunner-server/rpc/v4 v4.2.7
+	github.com/roadrunner-server/server/v4 v4.4.4
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/zap v1.26.0
 )
@@ -35,7 +35,7 @@ require (
 	github.com/facebookgo/clock v0.0.0-20150410010913-600d898af40a // indirect
 	github.com/fatih/color v1.15.0 // indirect
 	github.com/felixge/httpsnoop v1.0.3 // indirect
-	github.com/fsnotify/fsnotify v1.6.0 // indirect
+	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
@@ -48,7 +48,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.18.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
-	github.com/klauspost/compress v1.17.1 // indirect
+	github.com/klauspost/compress v1.17.2 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
