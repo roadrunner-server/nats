@@ -6,7 +6,7 @@ toolchain go1.21.1
 
 require (
 	github.com/goccy/go-json v0.10.2
-	github.com/google/uuid v1.3.1
+	github.com/google/uuid v1.4.0
 	github.com/nats-io/nats.go v1.31.0
 	github.com/roadrunner-server/api/v4 v4.9.0
 	github.com/roadrunner-server/endure/v2 v2.4.3
@@ -20,7 +20,7 @@ require (
 
 require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/go-logr/logr v1.2.4 // indirect
+	github.com/go-logr/logr v1.3.0 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/klauspost/compress v1.17.2 // indirect
