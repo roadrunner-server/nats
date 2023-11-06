@@ -10,12 +10,11 @@ import (
 )
 
 // blocking
-func (c *Driver) listenerInit(stream jetstream.Stream, streamID string, rateLimit uint64) error {
+func (c *Driver) listenerInit(streamID string, rateLimit uint64) error {
 	id := uuid.NewString()
-	cons, err := stream.CreateConsumer(context.Background(), jetstream.ConsumerConfig{
-		Name: id,
-		//Durable:   streamID,
-		//RateLimit: rateLimit,
+	cons, err := c.jetstream.CreateConsumer(context.Background(), streamID, jetstream.ConsumerConfig{
+		Name:    id,
+		//	RateLimit: rateLimit,
 		AckPolicy: jetstream.AckExplicitPolicy,
 	})
 	if err != nil {
@@ -25,6 +24,7 @@ func (c *Driver) listenerInit(stream jetstream.Stream, streamID string, rateLimi
 	consume, err := cons.Consume(func(msg jetstream.Msg) {
 		c.msgCh <- msg
 	})
+
 	if err != nil {
 		return err
 	}

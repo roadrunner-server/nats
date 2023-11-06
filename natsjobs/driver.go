@@ -114,13 +114,13 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 		return nil, errors.E(op, err)
 	}
 
-	js, err := jetstream.New(conn, jetstream.WithPublishAsyncMaxPending(1000))
+	js, err := jetstream.New(conn)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
 
 	stream, err := js.CreateOrUpdateStream(context.Background(), jetstream.StreamConfig{
-		Name:     conf.Stream,
+		Name:     conf.StreamId,
 		Subjects: []string{conf.Subject},
 	})
 	if err != nil {
@@ -141,7 +141,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 
 		priority:           conf.Priority,
 		subject:            conf.Subject,
-		streamID:           conf.Stream,
+		streamID:           conf.StreamId,
 		deleteAfterAck:     conf.DeleteAfterAck,
 		deleteStreamOnStop: conf.DeleteStreamOnStop,
 		prefetch:           conf.Prefetch,
@@ -197,9 +197,12 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.
 		return nil, errors.E(op, err)
 	}
 
+	defStream := pipe.String(pipeStream, "default-streamID")
+	defSubject := pipe.String(pipeSubject, "default.*")
+
 	stream, err := js.CreateOrUpdateStream(context.Background(), jetstream.StreamConfig{
-		Name:     pipe.String(pipeStream, "default-stream"),
-		Subjects: []string{pipe.String(pipeSubject, "default")},
+		Name:     defStream,
+		Subjects: []string{defSubject},
 	})
 	if err != nil {
 		return nil, err
@@ -213,12 +216,13 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.
 		stopCh:  make(chan struct{}),
 		stopped: 0,
 
-		conn:   conn,
-		stream: stream,
+		conn:      conn,
+		stream:    stream,
+		jetstream: js,
 
 		priority:           pipe.Priority(),
-		subject:            pipe.String(pipeSubject, "default"),
-		streamID:           pipe.String(pipeStream, "default-streamID"),
+		subject:            defSubject,
+		streamID:           defStream,
 		prefetch:           pipe.Int(pipePrefetch, 100),
 		deleteAfterAck:     pipe.Bool(pipeDeleteAfterAck, false),
 		deliverNew:         pipe.Bool(pipeDeliverNew, false),
@@ -282,7 +286,7 @@ func (c *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 	}
 
 	atomic.AddUint32(&c.listeners, 1)
-	err := c.listenerInit(c.stream, c.streamID, c.rateLimit)
+	err := c.listenerInit(c.streamID, c.rateLimit)
 	if err != nil {
 		return errors.E(op, err)
 	}
@@ -338,7 +342,7 @@ func (c *Driver) Resume(ctx context.Context, p string) error {
 		return errors.Str("nats listener is already in the active state")
 	}
 
-	err := c.listenerInit(c.stream, c.streamID, c.rateLimit)
+	err := c.listenerInit(c.streamID, c.rateLimit)
 	if err != nil {
 		return err
 	}
@@ -456,11 +460,11 @@ func reconnectHandler(log *zap.Logger) func(*nats.Conn) {
 func disconnectHandler(log *zap.Logger) func(*nats.Conn, error) {
 	return func(_ *nats.Conn, err error) {
 		if err != nil {
-			log.Error("nast disconnected", zap.Error(err))
+			log.Error("nats disconnected", zap.Error(err))
 			return
 		}
 
-		log.Warn("nast disconnected")
+		log.Info("nats disconnected")
 	}
 }
 

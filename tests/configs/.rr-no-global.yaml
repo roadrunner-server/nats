@@ -30,8 +30,8 @@ jobs:
       driver: nats
       config:
         prefetch: 100
-        subject: "default"
-        stream: "foo"
+        subject: "default.*"
+        streamId: "foo"
         deliver_new: "true"
         priority: 1
 
@@ -39,8 +39,8 @@ jobs:
       driver: nats
       config:
         prefetch: 100
-        subject: "default"
-        stream: "foo"
+        subject: "default.*"
+        streamId: "foo"
         deliver_new: "true"
         priority: 2
 

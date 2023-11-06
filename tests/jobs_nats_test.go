@@ -1,6 +1,7 @@
 package durability
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"net"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/goccy/go-json"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	jobsProto "github.com/roadrunner-server/api/v4/build/jobs/v1"
 	jobState "github.com/roadrunner-server/api/v4/plugins/v1/jobs"
 	"github.com/roadrunner-server/config/v4"
@@ -511,7 +513,7 @@ func TestNATSDeclare(t *testing.T) {
 
 	time.Sleep(time.Second * 3)
 
-	t.Run("DeclarePipeline", declareNATSPipe("127.0.0.1:6001", "default-10", "stream-10"))
+	t.Run("DeclarePipeline", declareNATSPipe("127.0.0.1:6001", "default-10.*", "stream-10"))
 	t.Run("ConsumePipeline", helpers.ResumePipes("127.0.0.1:6001", "test-3"))
 	t.Run("PushPipeline", helpers.PushToPipe("test-3", false, "127.0.0.1:6001"))
 	time.Sleep(time.Second)
@@ -591,7 +593,7 @@ func TestNATSJobsError(t *testing.T) {
 
 	time.Sleep(time.Second * 3)
 
-	t.Run("DeclarePipeline", declareNATSPipe("127.0.0.1:6001", "default-11", "stream-11"))
+	t.Run("DeclarePipeline", declareNATSPipe("127.0.0.1:6001", "default-11.*", "stream-11"))
 	t.Run("ConsumePipeline", helpers.ResumePipes("127.0.0.1:6001", "test-3"))
 	t.Run("PushPipeline", helpers.PushToPipe("test-3", false, "127.0.0.1:6001"))
 	time.Sleep(time.Second * 25)
@@ -681,10 +683,13 @@ func TestNATSRaw(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	js, err := conn.JetStream()
+	js, err := jetstream.New(conn)
 	require.NoError(t, err)
 
-	si, err := js.StreamInfo("foo-raw")
+	ctx := context.Background()
+
+	stream, _ := js.Stream(ctx, "foo-raw")
+	si, err := stream.Info(ctx)
 	if err != nil {
 		if err.Error() == "nats: stream not found" {
 			// skip
@@ -694,16 +699,19 @@ func TestNATSRaw(t *testing.T) {
 	}
 
 	if si == nil {
-		_, err = js.AddStream(&nats.StreamConfig{
+		_, err = js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
 			Name:     "foo-raw",
-			Subjects: []string{"default-raw"},
+			Subjects: []string{"default-raw.*"},
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	_, err = js.Publish("default-raw", []byte("foo-barrrrrr-bazzzzz"))
+	_, err = js.PublishMsg(ctx, &nats.Msg{
+		Data:    []byte("foo-barrrrrr-bazzzzz"),
+		Subject: "default-raw.*",
+	})
 	require.NoError(t, err)
 
 	time.Sleep(time.Second * 10)
@@ -816,7 +824,7 @@ func TestNATSStats(t *testing.T) {
 
 	time.Sleep(time.Second * 3)
 
-	t.Run("DeclarePipeline", declareNATSPipe("127.0.0.1:13001", "default-13", "stream-13"))
+	t.Run("DeclarePipeline", declareNATSPipe("127.0.0.1:13001", "default-13.*", "stream-13"))
 	t.Run("ConsumePipeline", helpers.ResumePipes("127.0.0.1:13001", "test-3"))
 	t.Run("PushPipeline", helpers.PushToPipe("test-3", false, "127.0.0.1:13001"))
 	time.Sleep(time.Second * 2)
@@ -829,7 +837,7 @@ func TestNATSStats(t *testing.T) {
 
 	assert.Equal(t, "test-3", out.Pipeline)
 	assert.Equal(t, "nats", out.Driver)
-	assert.Equal(t, "default-13", out.Queue)
+	assert.Equal(t, "default-13.*", out.Queue)
 
 	assert.Equal(t, int64(0), out.Active)
 	assert.Equal(t, int64(0), out.Delayed)
@@ -845,7 +853,7 @@ func TestNATSStats(t *testing.T) {
 
 	assert.Equal(t, "test-3", out.Pipeline)
 	assert.Equal(t, "nats", out.Driver)
-	assert.Equal(t, "default-13", out.Queue)
+	assert.Equal(t, "default-13.*", out.Queue)
 
 	assert.Equal(t, int64(0), out.Active)
 	assert.Equal(t, int64(0), out.Delayed)

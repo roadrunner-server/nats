@@ -40,8 +40,8 @@ jobs:
       driver: nats
       config:
         prefetch: 100
-        subject: "default-otel"
-        stream: "foo-otel"
+        subject: "default-otel.*"
+        streamId: "foo-otel"
         delete_after_ack: true
         deliver_new: "true"
         priority: 1

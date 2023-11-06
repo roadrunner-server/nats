@@ -31,8 +31,8 @@ jobs:
       driver: nats
       config:
         prefetch: 100
-        subject: "default"
-        stream: "foo"
+        subject: "xxxxxxx.*"
+        streamId: "foo"
         delete_after_ack: true
         deliver_new: "true"
         priority: 1
@@ -41,8 +41,8 @@ jobs:
       driver: nats
       config:
         prefetch: 100
-        subject: "default-2"
-        stream: "foo-2"
+        subject: "default-2.*"
+        streamId: "foo-2"
         deliver_new: "true"
         delete_after_ack: true
         priority: 2
