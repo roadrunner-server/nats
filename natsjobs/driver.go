@@ -286,7 +286,7 @@ func (c *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 	}
 
 	atomic.AddUint32(&c.listeners, 1)
-	err := c.listenerInit(c.streamID, c.rateLimit)
+	err := c.listenerInit()
 	if err != nil {
 		return errors.E(op, err)
 	}
@@ -342,7 +342,7 @@ func (c *Driver) Resume(ctx context.Context, p string) error {
 		return errors.Str("nats listener is already in the active state")
 	}
 
-	err := c.listenerInit(c.streamID, c.rateLimit)
+	err := c.listenerInit()
 	if err != nil {
 		return err
 	}
@@ -378,7 +378,7 @@ func (c *Driver) State(ctx context.Context) (*jobs.State, error) {
 
 		if ci != nil {
 			st.Active = int64(ci.NumAckPending)
-			st.Reserved = int64(ci.NumWaiting)
+			st.Reserved = int64(ci.NumPending)
 			st.Delayed = 0
 		}
 	}
