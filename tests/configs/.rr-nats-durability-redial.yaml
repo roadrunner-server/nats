@@ -32,7 +32,7 @@ jobs:
       config:
         prefetch: 100
         subject: default.*
-        stream_id: foo
+        stream: foo
         deliver_new: true
         rate_limit: 100
         delete_after_ack: true
@@ -43,7 +43,7 @@ jobs:
       config:
         prefetch: 100
         subject: default2.*
-        stream_id: foo2
+        stream: foo2
         rate_limit: 100
         deliver_new: true
         delete_after_ack: true

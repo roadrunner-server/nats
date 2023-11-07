@@ -199,7 +199,7 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.
 		return nil, errors.E(op, err)
 	}
 
-	defStream := pipe.String(pipeStream, "default-streamID")
+	defStream := pipe.String(pipeStream, "default-stream")
 	defSubject := pipe.String(pipeSubject, "default.*")
 
 	stream, err := js.CreateOrUpdateStream(context.Background(), jetstream.StreamConfig{

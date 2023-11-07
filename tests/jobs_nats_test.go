@@ -988,7 +988,7 @@ func declareNATSPipe(address, subj, stream string) func(t *testing.T) {
 			"driver":      "nats",
 			"name":        "test-3",
 			"subject":     subj,
-			"stream_id":   stream,
+			"stream":   stream,
 			"deliver_new": "true",
 			"prefetch":    "100",
 			"priority":    "3",
