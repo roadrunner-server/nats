@@ -2,6 +2,7 @@ package natsjobs
 
 import (
 	"context"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -45,11 +46,12 @@ type Driver struct {
 	stopped   uint64
 
 	// nats
-	consumer  *consumer
-	conn      *nats.Conn
-	stream    jetstream.Stream
-	jetstream jetstream.JetStream
-	msgCh     chan jetstream.Msg
+	consumer     *consumer
+	consumerLock sync.RWMutex
+	conn         *nats.Conn
+	stream       jetstream.Stream
+	jetstream    jetstream.JetStream
+	msgCh        chan jetstream.Msg
 
 	// config
 	priority           int64
@@ -317,7 +319,10 @@ func (c *Driver) Pause(ctx context.Context, p string) error {
 	// remove listener
 	atomic.AddUint32(&c.listeners, ^uint32(0))
 
+	c.consumerLock.RLock()
 	c.consumer.context.Stop()
+	c.consumerLock.RUnlock()
+
 	c.stopCh <- struct{}{}
 
 	c.log.Debug("pipeline was paused", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
@@ -370,6 +375,8 @@ func (c *Driver) State(ctx context.Context) (*jobs.State, error) {
 		Ready:    ready(atomic.LoadUint32(&c.listeners)),
 	}
 
+	c.consumerLock.RLock()
+	defer c.consumerLock.RUnlock()
 	if c.consumer != nil && c.consumer.jsc != nil {
 		ci, err := c.consumer.jsc.Info(ctx)
 		if err != nil {

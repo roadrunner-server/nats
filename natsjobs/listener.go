@@ -28,12 +28,13 @@ func (c *Driver) listenerInit() error {
 	if err != nil {
 		return err
 	}
-
+	c.consumerLock.Lock()
 	c.consumer = &consumer{
 		id:      id,
 		jsc:     cons,
 		context: consume,
 	}
+	c.consumerLock.Unlock()
 
 	return nil
 }
@@ -135,7 +136,9 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 				span.End()
 
 			case <-c.stopCh:
+				c.consumerLock.Lock()
 				c.consumer = nil
+				c.consumerLock.Unlock()
 				return
 			}
 		}
