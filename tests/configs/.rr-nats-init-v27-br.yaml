@@ -32,7 +32,7 @@ jobs:
       config:
         prefetch: 100
         subject: "default-5.*"
-        streamId: "foo-15"
+        stream_id: "foo-15"
         delete_after_ack: "true"
         deliver_new: "true"
         priority: 1
@@ -43,7 +43,7 @@ jobs:
         prefetch: 100
         subject: "default-6.*"
         delete_after_ack: "true"
-        streamId: "foo-6"
+        stream_id: "foo-6"
         deliver_new: "true"
         priority: 2
 

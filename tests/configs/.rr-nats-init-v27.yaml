@@ -32,7 +32,7 @@ jobs:
       config:
         prefetch: 100
         subject: "default-3.*"
-        streamId: "foo-3"
+        stream_id: "foo-3"
         deliver_new: "true"
         priority: 1
 
@@ -41,7 +41,7 @@ jobs:
       config:
         prefetch: 100
         subject: "default-4.*"
-        streamId: "foo-4"
+        stream_id: "foo-4"
         deliver_new: "true"
         priority: 2
 

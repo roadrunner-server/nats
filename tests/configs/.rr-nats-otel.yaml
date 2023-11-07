@@ -41,7 +41,7 @@ jobs:
       config:
         prefetch: 100
         subject: "default-otel.*"
-        streamId: "foo-otel"
+        stream_id: "foo-otel"
         delete_after_ack: true
         deliver_new: "true"
         priority: 1

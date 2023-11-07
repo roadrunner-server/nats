@@ -120,7 +120,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 	}
 
 	stream, err := js.CreateOrUpdateStream(context.Background(), jetstream.StreamConfig{
-		Name:     conf.StreamId,
+		Name:     conf.StreamID,
 		Subjects: []string{conf.Subject},
 	})
 	if err != nil {
@@ -141,7 +141,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 
 		priority:           conf.Priority,
 		subject:            conf.Subject,
-		streamID:           conf.StreamId,
+		streamID:           conf.StreamID,
 		deleteAfterAck:     conf.DeleteAfterAck,
 		deleteStreamOnStop: conf.DeleteStreamOnStop,
 		prefetch:           conf.Prefetch,
