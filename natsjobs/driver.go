@@ -378,7 +378,7 @@ func (c *Driver) State(ctx context.Context) (*jobs.State, error) {
 
 		if ci != nil {
 			st.Active = int64(ci.NumAckPending)
-			st.Reserved = int64(ci.NumPending)
+			st.Reserved = int64(ci.NumWaiting)
 			st.Delayed = 0
 		}
 	}
