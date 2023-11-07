@@ -204,7 +204,7 @@ func TestNATSRemoveAllPQ(t *testing.T) {
 	assert.Equal(t, 2, oLogger.FilterMessageSnippet("pipeline was stopped").Len())
 	assert.Equal(t, 200, oLogger.FilterMessageSnippet("job was pushed successfully").Len())
 	assert.Equal(t, 2, oLogger.FilterMessageSnippet("job processing was started").Len())
-	assert.Equal(t, 2, oLogger.FilterMessageSnippet("nast disconnected").Len())
+	assert.Equal(t, 2, oLogger.FilterMessageSnippet("nats disconnected").Len())
 }
 
 func TestNATSInitAutoAck(t *testing.T) {
