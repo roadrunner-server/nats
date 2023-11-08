@@ -121,7 +121,7 @@ func TestNATSInit(t *testing.T) {
 	require.Equal(t, 2, oLogger.FilterMessageSnippet("pipeline was stopped").Len())
 
 	t.Cleanup(func() {
-		errc := cleanupNats("nats://127.0.0.1:4222", "foo", "foo-2")
+		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "foo", "foo-2")
 		t.Log(errc)
 	})
 }
@@ -212,7 +212,7 @@ func TestNATSRemoveAllPQ(t *testing.T) {
 	assert.Equal(t, 2, oLogger.FilterMessageSnippet("nats disconnected").Len())
 
 	t.Cleanup(func() {
-		errc := cleanupNats("nats://127.0.0.1:4222", "foo-pq", "foo-2-pq")
+		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "foo-pq", "foo-2-pq")
 		t.Log(errc)
 	})
 }
@@ -300,7 +300,7 @@ func TestNATSInitAutoAck(t *testing.T) {
 	require.Equal(t, 2, oLogger.FilterMessageSnippet("pipeline was stopped").Len())
 
 	t.Cleanup(func() {
-		errc := cleanupNats("nats://127.0.0.1:4222", "foo", "foo-2")
+		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "foo", "foo-2")
 		t.Log(errc)
 	})
 }
@@ -380,7 +380,7 @@ func TestNATSInitV27(t *testing.T) {
 	stopCh <- struct{}{}
 	wg.Wait()
 	t.Cleanup(func() {
-		errc := cleanupNats("nats://127.0.0.1:4222", "foo-3", "foo-4")
+		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "foo-3", "foo-4")
 		t.Log(errc)
 	})
 }
@@ -464,7 +464,7 @@ func TestNATSInitV27BadResp(t *testing.T) {
 	require.Equal(t, 2, oLogger.FilterMessageSnippet("response handler error").Len())
 
 	t.Cleanup(func() {
-		errc := cleanupNats("nats://127.0.0.1:4222", "foo-15", "foo-6")
+		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "foo-15", "foo-6")
 		t.Log(errc)
 	})
 }
@@ -549,7 +549,7 @@ func TestNATSDeclare(t *testing.T) {
 	wg.Wait()
 
 	t.Cleanup(func() {
-		errc := cleanupNats("nats://127.0.0.1:4222", "stream-1")
+		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "stream-1")
 		t.Log(errc)
 	})
 }
@@ -634,7 +634,7 @@ func TestNATSJobsError(t *testing.T) {
 	wg.Wait()
 
 	t.Cleanup(func() {
-		errc := cleanupNats("nats://127.0.0.1:4222", "stream-11", "foo-2")
+		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "stream-11", "foo-2")
 		t.Log(errc)
 	})
 }
@@ -760,7 +760,7 @@ func TestNATSRaw(t *testing.T) {
 	assert.Equal(t, 1, oLogger.FilterMessageSnippet("job was processed successfully").Len())
 
 	t.Cleanup(func() {
-		errc := cleanupNats("nats://127.0.0.1:4222", "foo-raw")
+		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "foo-raw")
 		t.Log(errc)
 	})
 }
@@ -907,7 +907,7 @@ func TestNATSStats(t *testing.T) {
 	wg.Wait()
 
 	t.Cleanup(func() {
-		errc := cleanupNats("nats://127.0.0.1:4222", "stream-13")
+		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "stream-13")
 		t.Log(errc)
 	})
 }
@@ -1019,7 +1019,7 @@ func TestNATSOTEL(t *testing.T) {
 
 	t.Cleanup(func() {
 		_ = resp.Body.Close()
-		errc := cleanupNats("nats://127.0.0.1:4222", "foo-otel")
+		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "foo-otel")
 		t.Log(errc)
 	})
 }
@@ -1044,31 +1044,4 @@ func declareNATSPipe(address, subj, stream string) func(t *testing.T) {
 		err = client.Call("jobs.Declare", pipe, er)
 		require.NoError(t, err)
 	}
-}
-
-func cleanupNats(address string, stream ...string) error {
-	conn, err := nats.Connect(address,
-		nats.NoEcho(),
-		nats.Timeout(time.Minute),
-		nats.MaxReconnects(-1),
-		nats.PingInterval(time.Second*10),
-		nats.ReconnectWait(time.Second),
-	)
-	if err != nil {
-		return err
-	}
-
-	js, err := jetstream.New(conn)
-	if err != nil {
-		return err
-	}
-
-	for _, s := range stream {
-		err = js.DeleteStream(context.Background(), s)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }

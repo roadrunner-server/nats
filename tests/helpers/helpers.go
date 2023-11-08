@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"bytes"
+	"context"
 	"net"
 	"net/http"
 	"net/rpc"
@@ -9,6 +10,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	jobsProto "github.com/roadrunner-server/api/v4/build/jobs/v1"
 	jobState "github.com/roadrunner-server/api/v4/plugins/v1/jobs"
 	goridgeRpc "github.com/roadrunner-server/goridge/v3/pkg/rpc"
@@ -191,4 +194,31 @@ func DeleteProxy(name string, t *testing.T) {
 	if resp.Body != nil {
 		_ = resp.Body.Close()
 	}
+}
+
+func CleanupNats(address string, stream ...string) error {
+	conn, err := nats.Connect(address,
+		nats.NoEcho(),
+		nats.Timeout(time.Minute),
+		nats.MaxReconnects(-1),
+		nats.PingInterval(time.Second*10),
+		nats.ReconnectWait(time.Second),
+	)
+	if err != nil {
+		return err
+	}
+
+	js, err := jetstream.New(conn)
+	if err != nil {
+		return err
+	}
+
+	for _, s := range stream {
+		err = js.DeleteStream(context.Background(), s)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

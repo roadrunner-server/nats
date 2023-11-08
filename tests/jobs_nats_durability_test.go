@@ -123,7 +123,7 @@ func TestDurabilityNATS(t *testing.T) {
 	wg.Wait()
 
 	t.Cleanup(func() {
-		errc := cleanupNats("nats://127.0.0.1:4222", "foo", "foo2")
+		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "foo", "foo2")
 		t.Log(errc)
 	})
 }
