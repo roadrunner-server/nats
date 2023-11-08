@@ -16,7 +16,7 @@ require (
 	github.com/roadrunner-server/informer/v4 v4.3.7
 	github.com/roadrunner-server/jobs/v4 v4.7.6
 	github.com/roadrunner-server/logger/v4 v4.2.7
-	github.com/roadrunner-server/nats/v4 v4.5.8
+	github.com/roadrunner-server/nats/v4 v4.6.0
 	github.com/roadrunner-server/otel/v4 v4.3.5
 	github.com/roadrunner-server/resetter/v4 v4.0.14
 	github.com/roadrunner-server/rpc/v4 v4.2.8
