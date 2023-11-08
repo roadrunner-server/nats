@@ -31,7 +31,7 @@ jobs:
       driver: nats
       config:
         prefetch: 100
-        subject: default.*
+        subject: default
         stream: foo
         deliver_new: true
         rate_limit: 100
@@ -42,7 +42,7 @@ jobs:
       driver: nats
       config:
         prefetch: 100
-        subject: default2.*
+        subject: default2
         stream: foo2
         rate_limit: 100
         deliver_new: true

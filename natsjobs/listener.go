@@ -2,6 +2,7 @@ package natsjobs
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go/jetstream"
@@ -12,10 +13,12 @@ import (
 // blocking
 func (c *Driver) listenerInit() error {
 	id := uuid.NewString()
-	cons, err := c.jetstream.CreateConsumer(context.Background(), c.streamID, jetstream.ConsumerConfig{
-		Name: id,
-		//	RateLimit: c.rateLimit,
-		AckPolicy: jetstream.AckExplicitPolicy,
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	cons, err := c.jetstream.CreateConsumer(ctx, c.streamID, jetstream.ConsumerConfig{
+		Name:          id,
+		MaxAckPending: c.prefetch,
+		AckPolicy:     jetstream.AckExplicitPolicy,
 	})
 	if err != nil {
 		return err

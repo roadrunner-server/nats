@@ -121,4 +121,9 @@ func TestDurabilityNATS(t *testing.T) {
 
 	stopCh <- struct{}{}
 	wg.Wait()
+
+	t.Cleanup(func() {
+		errc := cleanupNats("nats://127.0.0.1:4222", "foo", "foo2")
+		t.Log(errc)
+	})
 }
