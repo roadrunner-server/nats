@@ -31,7 +31,7 @@ jobs:
       driver: nats
       config:
         prefetch: 100
-        subject: default-raw
+        subject: default-raw.*
         stream: foo-raw
         consume_all: true
         delete_after_ack: true

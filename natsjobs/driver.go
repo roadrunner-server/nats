@@ -2,12 +2,13 @@ package natsjobs
 
 import (
 	"context"
-	stderr "errors"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/goccy/go-json"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"github.com/roadrunner-server/api/v4/plugins/v3/jobs"
 	"github.com/roadrunner-server/errors"
 	jprop "go.opentelemetry.io/contrib/propagators/jaeger"
@@ -29,7 +30,7 @@ var _ jobs.Driver = (*Driver)(nil)
 type Configurer interface {
 	// UnmarshalKey takes a single key and unmarshal it into a Struct.
 	UnmarshalKey(name string, out any) error
-	// Has checks if config section exists.
+	// Has checks if a config section exists.
 	Has(name string) bool
 }
 
@@ -45,20 +46,28 @@ type Driver struct {
 	stopped   uint64
 
 	// nats
-	conn  *nats.Conn
-	sub   *nats.Subscription
-	msgCh chan *nats.Msg
-	js    nats.JetStreamContext
+	consumer     *consumer
+	consumerLock sync.RWMutex
+	conn         *nats.Conn
+	stream       jetstream.Stream
+	jetstream    jetstream.JetStream
+	msgCh        chan jetstream.Msg
 
 	// config
 	priority           int64
 	subject            string
-	stream             string
+	streamID           string
 	prefetch           int
 	rateLimit          uint64
 	deleteAfterAck     bool
 	deliverNew         bool
 	deleteStreamOnStop bool
+}
+
+type consumer struct {
+	id      string
+	jsc     jetstream.Consumer
+	context jetstream.ConsumeContext
 }
 
 func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logger, cfg Configurer, pipe jobs.Pipeline, pq jobs.Queue) (*Driver, error) {
@@ -107,29 +116,17 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 		return nil, errors.E(op, err)
 	}
 
-	js, err := conn.JetStream()
+	js, err := jetstream.New(conn)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
 
-	var si *nats.StreamInfo
-	si, err = js.StreamInfo(conf.Stream)
+	stream, err := js.CreateOrUpdateStream(context.Background(), jetstream.StreamConfig{
+		Name:     conf.StreamID,
+		Subjects: []string{conf.Subject},
+	})
 	if err != nil {
-		if stderr.Is(err, nats.ErrStreamNotFound) {
-			si, err = js.AddStream(&nats.StreamConfig{
-				Name:     conf.Stream,
-				Subjects: []string{conf.Subject},
-			})
-			if err != nil {
-				return nil, errors.E(op, err)
-			}
-		} else {
-			return nil, errors.E(op, err)
-		}
-	}
-
-	if si == nil {
-		return nil, errors.E(op, errors.Str("failed to create a stream"))
+		return nil, err
 	}
 
 	cs := &Driver{
@@ -140,17 +137,19 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 		stopped: 0,
 		queue:   pq,
 
-		conn:               conn,
-		js:                 js,
+		conn:      conn,
+		stream:    stream,
+		jetstream: js,
+
 		priority:           conf.Priority,
 		subject:            conf.Subject,
-		stream:             conf.Stream,
+		streamID:           conf.StreamID,
 		deleteAfterAck:     conf.DeleteAfterAck,
 		deleteStreamOnStop: conf.DeleteStreamOnStop,
 		prefetch:           conf.Prefetch,
 		deliverNew:         conf.DeliverNew,
 		rateLimit:          conf.RateLimit,
-		msgCh:              make(chan *nats.Msg, conf.Prefetch),
+		msgCh:              make(chan jetstream.Msg, conf.Prefetch),
 	}
 
 	cs.pipeline.Store(&pipe)
@@ -195,29 +194,20 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.
 		return nil, errors.E(op, err)
 	}
 
-	js, err := conn.JetStream()
+	js, err := jetstream.New(conn)
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
 
-	var si *nats.StreamInfo
-	si, err = js.StreamInfo(pipe.String(pipeStream, "default-stream"))
-	if err != nil {
-		if stderr.Is(err, nats.ErrStreamNotFound) {
-			si, err = js.AddStream(&nats.StreamConfig{
-				Name:     pipe.String(pipeStream, "default-stream"),
-				Subjects: []string{pipe.String(pipeSubject, "default")},
-			})
-			if err != nil {
-				return nil, errors.E(op, err)
-			}
-		} else {
-			return nil, errors.E(op, err)
-		}
-	}
+	defStream := pipe.String(pipeStream, "default-stream")
+	defSubject := pipe.String(pipeSubject, "default")
 
-	if si == nil {
-		return nil, errors.E(op, errors.Str("failed to create a stream"))
+	stream, err := js.CreateOrUpdateStream(context.Background(), jetstream.StreamConfig{
+		Name:     defStream,
+		Subjects: []string{defSubject},
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	cs := &Driver{
@@ -228,17 +218,19 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.
 		stopCh:  make(chan struct{}),
 		stopped: 0,
 
-		conn:               conn,
-		js:                 js,
+		conn:      conn,
+		stream:    stream,
+		jetstream: js,
+
 		priority:           pipe.Priority(),
-		subject:            pipe.String(pipeSubject, "default"),
-		stream:             pipe.String(pipeStream, "default-stream"),
+		subject:            defSubject,
+		streamID:           defStream,
 		prefetch:           pipe.Int(pipePrefetch, 100),
 		deleteAfterAck:     pipe.Bool(pipeDeleteAfterAck, false),
 		deliverNew:         pipe.Bool(pipeDeliverNew, false),
 		deleteStreamOnStop: pipe.Bool(pipeDeleteStreamOnStop, false),
 		rateLimit:          uint64(pipe.Int(pipeRateLimit, 1000)),
-		msgCh:              make(chan *nats.Msg, pipe.Int(pipePrefetch, 100)),
+		msgCh:              make(chan jetstream.Msg, pipe.Int(pipePrefetch, 100)),
 	}
 
 	cs.pipeline.Store(&pipe)
@@ -264,7 +256,10 @@ func (c *Driver) Push(ctx context.Context, job jobs.Message) error {
 		return errors.E(op, err)
 	}
 
-	_, err = c.js.Publish(c.subject, data)
+	_, err = c.jetstream.PublishMsg(ctx, &nats.Msg{
+		Data:    data,
+		Subject: c.subject,
+	})
 	if err != nil {
 		return errors.E(op, err)
 	}
@@ -324,15 +319,11 @@ func (c *Driver) Pause(ctx context.Context, p string) error {
 	// remove listener
 	atomic.AddUint32(&c.listeners, ^uint32(0))
 
-	if c.sub != nil {
-		err := c.sub.Drain()
-		if err != nil {
-			c.log.Error("drain error", zap.Error(err))
-		}
-	}
+	c.consumerLock.RLock()
+	c.consumer.context.Stop()
+	c.consumerLock.RUnlock()
 
 	c.stopCh <- struct{}{}
-	c.sub = nil
 
 	c.log.Debug("pipeline was paused", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
 
@@ -384,15 +375,17 @@ func (c *Driver) State(ctx context.Context) (*jobs.State, error) {
 		Ready:    ready(atomic.LoadUint32(&c.listeners)),
 	}
 
-	if c.sub != nil {
-		ci, err := c.sub.ConsumerInfo()
+	c.consumerLock.RLock()
+	defer c.consumerLock.RUnlock()
+	if c.consumer != nil && c.consumer.jsc != nil {
+		ci, err := c.consumer.jsc.Info(ctx)
 		if err != nil {
 			return nil, err
 		}
 
 		if ci != nil {
 			st.Active = int64(ci.NumAckPending)
-			st.Reserved = int64(ci.NumWaiting)
+			st.Reserved = int64(ci.NumPending)
 			st.Delayed = 0
 		}
 	}
@@ -412,18 +405,15 @@ func (c *Driver) Stop(ctx context.Context) error {
 	_ = c.queue.Remove(pipe.Name())
 
 	if atomic.LoadUint32(&c.listeners) > 0 {
-		if c.sub != nil {
-			err := c.sub.Drain()
-			if err != nil {
-				c.log.Error("drain error", zap.Error(err))
-			}
+		err := c.stream.Purge(ctx)
+		if err != nil {
+			c.log.Error("drain error", zap.Error(err))
 		}
-
 		c.stopCh <- struct{}{}
 	}
 
 	if c.deleteStreamOnStop {
-		err := c.js.DeleteStream(c.stream)
+		err := c.jetstream.DeleteStream(ctx, c.streamID)
 		if err != nil {
 			return err
 		}
@@ -453,13 +443,16 @@ func (c *Driver) requeue(item *Item) error {
 		return errors.E(op, err)
 	}
 
-	_, err = c.js.Publish(c.subject, data)
+	_, err = c.jetstream.PublishMsg(context.Background(), &nats.Msg{
+		Subject: c.subject,
+		Data:    data,
+	})
 	if err != nil {
 		return errors.E(op, err)
 	}
 
 	// delete the old message
-	_ = c.js.DeleteMsg(c.stream, item.Options.seq)
+	_ = c.stream.DeleteMsg(context.Background(), item.Options.seq)
 
 	item = nil
 	return nil
@@ -474,11 +467,11 @@ func reconnectHandler(log *zap.Logger) func(*nats.Conn) {
 func disconnectHandler(log *zap.Logger) func(*nats.Conn, error) {
 	return func(_ *nats.Conn, err error) {
 		if err != nil {
-			log.Error("nast disconnected", zap.Error(err))
+			log.Error("nats disconnected", zap.Error(err))
 			return
 		}
 
-		log.Warn("nast disconnected")
+		log.Info("nats disconnected")
 	}
 }
 

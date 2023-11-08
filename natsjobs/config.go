@@ -21,7 +21,7 @@ type config struct {
 
 	Priority           int64  `mapstructure:"priority"`
 	Subject            string `mapstructure:"subject"`
-	Stream             string `mapstructure:"stream"`
+	StreamID           string `mapstructure:"stream"`
 	Prefetch           int    `mapstructure:"prefetch"`
 	RateLimit          uint64 `mapstructure:"rate_limit"`
 	DeleteAfterAck     bool   `mapstructure:"delete_after_ack"`
@@ -42,8 +42,8 @@ func (c *config) InitDefaults() {
 		c.Priority = 10
 	}
 
-	if c.Stream == "" {
-		c.Stream = "default-stream"
+	if c.StreamID == "" {
+		c.StreamID = "default-stream"
 	}
 
 	if c.Subject == "" {

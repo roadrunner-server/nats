@@ -1,6 +1,7 @@
 package durability
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"net"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/goccy/go-json"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	jobsProto "github.com/roadrunner-server/api/v4/build/jobs/v1"
 	jobState "github.com/roadrunner-server/api/v4/plugins/v1/jobs"
 	"github.com/roadrunner-server/config/v4"
@@ -117,6 +119,11 @@ func TestNATSInit(t *testing.T) {
 	require.Equal(t, 2, oLogger.FilterMessageSnippet("job processing was started").Len())
 	require.Equal(t, 2, oLogger.FilterMessageSnippet("job was processed successfully").Len())
 	require.Equal(t, 2, oLogger.FilterMessageSnippet("pipeline was stopped").Len())
+
+	t.Cleanup(func() {
+		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "foo", "foo-2")
+		t.Log(errc)
+	})
 }
 
 func TestNATSRemoveAllPQ(t *testing.T) {
@@ -202,7 +209,12 @@ func TestNATSRemoveAllPQ(t *testing.T) {
 	assert.Equal(t, 2, oLogger.FilterMessageSnippet("pipeline was stopped").Len())
 	assert.Equal(t, 200, oLogger.FilterMessageSnippet("job was pushed successfully").Len())
 	assert.Equal(t, 2, oLogger.FilterMessageSnippet("job processing was started").Len())
-	assert.Equal(t, 2, oLogger.FilterMessageSnippet("nast disconnected").Len())
+	assert.Equal(t, 2, oLogger.FilterMessageSnippet("nats disconnected").Len())
+
+	t.Cleanup(func() {
+		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "foo-pq", "foo-2-pq")
+		t.Log(errc)
+	})
 }
 
 func TestNATSInitAutoAck(t *testing.T) {
@@ -286,6 +298,11 @@ func TestNATSInitAutoAck(t *testing.T) {
 	require.Equal(t, 2, oLogger.FilterMessageSnippet("job processing was started").Len())
 	require.Equal(t, 2, oLogger.FilterMessageSnippet("job was processed successfully").Len())
 	require.Equal(t, 2, oLogger.FilterMessageSnippet("pipeline was stopped").Len())
+
+	t.Cleanup(func() {
+		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "foo", "foo-2")
+		t.Log(errc)
+	})
 }
 
 func TestNATSInitV27(t *testing.T) {
@@ -362,6 +379,10 @@ func TestNATSInitV27(t *testing.T) {
 
 	stopCh <- struct{}{}
 	wg.Wait()
+	t.Cleanup(func() {
+		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "foo-3", "foo-4")
+		t.Log(errc)
+	})
 }
 
 func TestNATSInitV27BadResp(t *testing.T) {
@@ -441,6 +462,11 @@ func TestNATSInitV27BadResp(t *testing.T) {
 	wg.Wait()
 
 	require.Equal(t, 2, oLogger.FilterMessageSnippet("response handler error").Len())
+
+	t.Cleanup(func() {
+		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "foo-15", "foo-6")
+		t.Log(errc)
+	})
 }
 
 func TestNATSDeclare(t *testing.T) {
@@ -511,7 +537,7 @@ func TestNATSDeclare(t *testing.T) {
 
 	time.Sleep(time.Second * 3)
 
-	t.Run("DeclarePipeline", declareNATSPipe("127.0.0.1:6001", "default-10", "stream-10"))
+	t.Run("DeclarePipeline", declareNATSPipe("127.0.0.1:6001", "default-10.*", "stream-10"))
 	t.Run("ConsumePipeline", helpers.ResumePipes("127.0.0.1:6001", "test-3"))
 	t.Run("PushPipeline", helpers.PushToPipe("test-3", false, "127.0.0.1:6001"))
 	time.Sleep(time.Second)
@@ -521,6 +547,11 @@ func TestNATSDeclare(t *testing.T) {
 
 	stopCh <- struct{}{}
 	wg.Wait()
+
+	t.Cleanup(func() {
+		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "stream-1")
+		t.Log(errc)
+	})
 }
 
 func TestNATSJobsError(t *testing.T) {
@@ -591,7 +622,7 @@ func TestNATSJobsError(t *testing.T) {
 
 	time.Sleep(time.Second * 3)
 
-	t.Run("DeclarePipeline", declareNATSPipe("127.0.0.1:6001", "default-11", "stream-11"))
+	t.Run("DeclarePipeline", declareNATSPipe("127.0.0.1:6001", "default-11.*", "stream-11"))
 	t.Run("ConsumePipeline", helpers.ResumePipes("127.0.0.1:6001", "test-3"))
 	t.Run("PushPipeline", helpers.PushToPipe("test-3", false, "127.0.0.1:6001"))
 	time.Sleep(time.Second * 25)
@@ -601,6 +632,11 @@ func TestNATSJobsError(t *testing.T) {
 	time.Sleep(time.Second * 5)
 	stopCh <- struct{}{}
 	wg.Wait()
+
+	t.Cleanup(func() {
+		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "stream-11", "foo-2")
+		t.Log(errc)
+	})
 }
 
 func TestNATSRaw(t *testing.T) {
@@ -681,10 +717,13 @@ func TestNATSRaw(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	js, err := conn.JetStream()
+	js, err := jetstream.New(conn)
 	require.NoError(t, err)
 
-	si, err := js.StreamInfo("foo-raw")
+	ctx := context.Background()
+
+	stream, _ := js.Stream(ctx, "foo-raw")
+	si, err := stream.Info(ctx)
 	if err != nil {
 		if err.Error() == "nats: stream not found" {
 			// skip
@@ -694,16 +733,19 @@ func TestNATSRaw(t *testing.T) {
 	}
 
 	if si == nil {
-		_, err = js.AddStream(&nats.StreamConfig{
+		_, err = js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
 			Name:     "foo-raw",
-			Subjects: []string{"default-raw"},
+			Subjects: []string{"default-raw.*"},
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	_, err = js.Publish("default-raw", []byte("foo-barrrrrr-bazzzzz"))
+	_, err = js.PublishMsg(ctx, &nats.Msg{
+		Data:    []byte("foo-barrrrrr-bazzzzz"),
+		Subject: "default-raw.*",
+	})
 	require.NoError(t, err)
 
 	time.Sleep(time.Second * 10)
@@ -716,6 +758,11 @@ func TestNATSRaw(t *testing.T) {
 	assert.Equal(t, 1, oLogger.FilterMessageSnippet("pipeline was stopped").Len())
 	assert.Equal(t, 1, oLogger.FilterMessageSnippet("job processing was started").Len())
 	assert.Equal(t, 1, oLogger.FilterMessageSnippet("job was processed successfully").Len())
+
+	t.Cleanup(func() {
+		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "foo-raw")
+		t.Log(errc)
+	})
 }
 
 func TestNATSNoGlobalSection(t *testing.T) {
@@ -816,7 +863,7 @@ func TestNATSStats(t *testing.T) {
 
 	time.Sleep(time.Second * 3)
 
-	t.Run("DeclarePipeline", declareNATSPipe("127.0.0.1:13001", "default-13", "stream-13"))
+	t.Run("DeclarePipeline", declareNATSPipe("127.0.0.1:13001", "default-13.*", "stream-13"))
 	t.Run("ConsumePipeline", helpers.ResumePipes("127.0.0.1:13001", "test-3"))
 	t.Run("PushPipeline", helpers.PushToPipe("test-3", false, "127.0.0.1:13001"))
 	time.Sleep(time.Second * 2)
@@ -829,7 +876,7 @@ func TestNATSStats(t *testing.T) {
 
 	assert.Equal(t, "test-3", out.Pipeline)
 	assert.Equal(t, "nats", out.Driver)
-	assert.Equal(t, "default-13", out.Queue)
+	assert.Equal(t, "default-13.*", out.Queue)
 
 	assert.Equal(t, int64(0), out.Active)
 	assert.Equal(t, int64(0), out.Delayed)
@@ -845,7 +892,7 @@ func TestNATSStats(t *testing.T) {
 
 	assert.Equal(t, "test-3", out.Pipeline)
 	assert.Equal(t, "nats", out.Driver)
-	assert.Equal(t, "default-13", out.Queue)
+	assert.Equal(t, "default-13.*", out.Queue)
 
 	assert.Equal(t, int64(0), out.Active)
 	assert.Equal(t, int64(0), out.Delayed)
@@ -858,6 +905,11 @@ func TestNATSStats(t *testing.T) {
 	time.Sleep(time.Second * 5)
 	stopCh <- struct{}{}
 	wg.Wait()
+
+	t.Cleanup(func() {
+		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "stream-13")
+		t.Log(errc)
+	})
 }
 
 func TestNATSOTEL(t *testing.T) {
@@ -967,6 +1019,8 @@ func TestNATSOTEL(t *testing.T) {
 
 	t.Cleanup(func() {
 		_ = resp.Body.Close()
+		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "foo-otel")
+		t.Log(errc)
 	})
 }
 

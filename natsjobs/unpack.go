@@ -22,7 +22,7 @@ func (c *Driver) unpack(data []byte, item *Item) {
 			Options: &Options{
 				Priority: (*c.pipeline.Load()).Priority(),
 				Pipeline: (*c.pipeline.Load()).Name(),
-				Queue:    c.stream,
+				Queue:    c.streamID,
 			},
 		}
 		c.log.Debug("raw payload", zap.String("assigned ID", item.Ident))

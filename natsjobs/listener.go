@@ -2,27 +2,42 @@ package natsjobs
 
 import (
 	"context"
+	"time"
 
-	"github.com/nats-io/nats.go"
+	"github.com/google/uuid"
+	"github.com/nats-io/nats.go/jetstream"
 	"go.opentelemetry.io/otel/propagation"
 	"go.uber.org/zap"
 )
 
 // blocking
 func (c *Driver) listenerInit() error {
-	var err error
-
-	opts := make([]nats.SubOpt, 0)
-	if c.deliverNew {
-		opts = append(opts, nats.DeliverNew())
-	}
-
-	opts = append(opts, nats.RateLimit(c.rateLimit))
-	opts = append(opts, nats.AckExplicit())
-	c.sub, err = c.js.ChanSubscribe(c.subject, c.msgCh, opts...)
+	id := uuid.NewString()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	cons, err := c.jetstream.CreateConsumer(ctx, c.streamID, jetstream.ConsumerConfig{
+		Name:          id,
+		MaxAckPending: c.prefetch,
+		AckPolicy:     jetstream.AckExplicitPolicy,
+	})
 	if err != nil {
 		return err
 	}
+
+	consume, err := cons.Consume(func(msg jetstream.Msg) {
+		c.msgCh <- msg
+	})
+
+	if err != nil {
+		return err
+	}
+	c.consumerLock.Lock()
+	c.consumer = &consumer{
+		id:      id,
+		jsc:     cons,
+		context: consume,
+	}
+	c.consumerLock.Unlock()
 
 	return nil
 }
@@ -34,10 +49,10 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 			case m, ok := <-c.msgCh:
 				if !ok {
 					c.log.Warn("nats consume channel was closed")
+					c.consumer = nil
 					return
 				}
 
-				// only JS messages
 				meta, err := m.Metadata()
 				if err != nil {
 					errn := m.Nak()
@@ -61,13 +76,13 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 				}
 
 				item := &Item{}
-				c.unpack(m.Data, item)
+				c.unpack(m.Data(), item)
 
 				ctx := c.prop.Extract(context.Background(), propagation.HeaderCarrier(item.headers))
 				ctx, span := c.tracer.Tracer(tracerName).Start(ctx, "nats_listener")
 
 				// set queue and pipeline
-				item.Options.Queue = c.stream
+				item.Options.Queue = c.streamID
 				item.Options.Pipeline = (*c.pipeline.Load()).Name()
 				item.Options.stopped = &c.stopped
 
@@ -80,8 +95,8 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 
 				// needed only if delete after ack is true
 				if c.deleteAfterAck {
-					item.Options.stream = c.stream
-					item.Options.sub = c.js
+					item.Options.sub = c.stream
+					item.Options.stream = c.streamID
 					item.Options.deleteAfterAck = c.deleteAfterAck
 				}
 
@@ -101,7 +116,7 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 					}
 
 					if item.Options.deleteAfterAck {
-						err = c.js.DeleteMsg(c.stream, meta.Sequence.Stream)
+						err = c.stream.DeleteMsg(context.Background(), meta.Sequence.Stream)
 						if err != nil {
 							c.log.Error("delete message", zap.Error(err))
 							item = nil
@@ -122,7 +137,11 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 				c.prop.Inject(ctx, propagation.HeaderCarrier(item.headers))
 				c.queue.Insert(item)
 				span.End()
+
 			case <-c.stopCh:
+				c.consumerLock.Lock()
+				c.consumer = nil
+				c.consumerLock.Unlock()
 				return
 			}
 		}

@@ -29,7 +29,7 @@ jobs:
       driver: nats
       config:
         prefetch: 100
-        subject: "default-pq"
+        subject: "default-pq.*"
         stream: "foo-pq"
         delete_after_ack: true
         deliver_new: "true"
@@ -39,7 +39,7 @@ jobs:
       driver: nats
       config:
         prefetch: 100
-        subject: "default-2-pq"
+        subject: "default-2-pq.*"
         stream: "foo-2-pq"
         deliver_new: "true"
         delete_after_ack: true
