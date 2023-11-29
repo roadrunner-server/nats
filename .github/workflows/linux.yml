@@ -5,6 +5,7 @@ on:
     branches:
       - master
       - stable
+      - "feature/pass-message-subject-as-header"
   pull_request:
     branches:
       - master
