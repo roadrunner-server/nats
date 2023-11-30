@@ -25,7 +25,7 @@ jobs:
     destroy_timeout: 60s
 
   pipelines:
-    test-1-pq:
+    test-nats-message-subject-as-header:
       driver: nats
       config:
         prefetch: 100

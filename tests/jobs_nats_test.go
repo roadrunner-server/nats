@@ -1134,7 +1134,7 @@ func TestNATSMessageSubjectAsHeader(t *testing.T) {
 	require.NoError(t, err)
 
 	time.Sleep(time.Second * 10)
-	helpers.DestroyPipelines("127.0.0.1:6001", "test-raw")
+	helpers.DestroyPipelines("127.0.0.1:6001", "test-nats-message-subject-as-header")
 
 	stopCh <- struct{}{}
 	wg.Wait()
