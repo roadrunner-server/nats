@@ -17,8 +17,8 @@ $consumer = new Spiral\RoadRunner\Jobs\Consumer();
 
 while ($task = $consumer->waitTask()) {
     try {
-        $subject = $task->getHeader('x-nats-subject')[0];
-        if ('default-nats-message-subject-as-header.current-subject' !== $task->getQueue()) {
+        $subject = $task->getHeader('x-nats-subject')[0] ?? 'undefined';
+        if ('default-nats-message-subject-as-header.current-subject' !== $subject) {
             throw new RuntimeException('Subject was not found');
         }
 
