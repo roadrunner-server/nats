@@ -1145,7 +1145,7 @@ func TestNATSMessageSubjectAsHeader(t *testing.T) {
 	assert.Equal(t, 1, oLogger.FilterMessageSnippet("job was processed successfully").Len())
 
 	t.Cleanup(func() {
-		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "foo-raw")
+		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "foo-nats-message-subject-as-header")
 		t.Log(errc)
 	})
 }
