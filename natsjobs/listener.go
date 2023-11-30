@@ -136,9 +136,10 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 					item.headers = make(map[string][]string, 1)
 				}
 
-				item.headers["x-nats-subject"] = []string{item.Options.subject}
-
 				c.prop.Inject(ctx, propagation.HeaderCarrier(item.headers))
+				c.prop.Inject(ctx, propagation.HeaderCarrier(map[string][]string{
+					"x-nats-subject": {item.Options.subject},
+				}))
 				c.queue.Insert(item)
 				span.End()
 
