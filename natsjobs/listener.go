@@ -94,8 +94,6 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 				item.Options.requeueFn = c.requeue
 				// sequence needed for the requeue
 				item.Options.seq = meta.Sequence.Stream
-				// subject needed to pass it as header
-				item.Options.subject = m.Subject()
 
 				// needed only if delete after ack is true
 				if c.deleteAfterAck {

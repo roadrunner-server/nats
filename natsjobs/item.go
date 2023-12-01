@@ -46,7 +46,6 @@ type Options struct {
 	stream         string
 	seq            uint64
 	sub            jetstream.Stream
-	subject        string
 }
 
 // DelayDuration returns delay duration in a form of time.Duration.
