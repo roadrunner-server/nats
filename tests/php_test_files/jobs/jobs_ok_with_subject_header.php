@@ -15,11 +15,17 @@ require dirname(__DIR__) . "/vendor/autoload.php";
 
 $consumer = new Spiral\RoadRunner\Jobs\Consumer();
 
+const EXPECTED_SUBJECT = 'default-nats-message-subject-as-header.current-subject';
+
 while ($task = $consumer->waitTask()) {
     try {
         $subject = $task->getHeader('x-nats-subject')[0] ?? 'undefined';
-        if ('default-nats-message-subject-as-header.current-subject' !== $subject) {
-            throw new RuntimeException('Subject was not found');
+        if (EXPECTED_SUBJECT !== $subject) {
+            throw new RuntimeException(sprintf(
+                "Expected subject '%s', got '%s'",
+                EXPECTED_SUBJECT,
+                $subject
+            ));
         }
 
         $task->complete();
