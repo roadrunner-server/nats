@@ -10,8 +10,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const NatsSubjectHeaderKey = "x-nats-subject"
-
 // blocking
 func (c *Driver) listenerInit() error {
 	id := uuid.NewString()
