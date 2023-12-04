@@ -1024,6 +1024,133 @@ func TestNATSOTEL(t *testing.T) {
 	})
 }
 
+func TestNATSMessageSubjectAsHeader(t *testing.T) {
+	cont := endure.New(slog.LevelDebug)
+
+	cfg := &config.Plugin{
+		Version: "4.6.2",
+		Path:    "configs/.rr-nats-message-subject-as-header.yaml",
+		Prefix:  "rr",
+	}
+
+	l, oLogger := mocklogger.ZapTestLogger(zap.DebugLevel)
+	err := cont.RegisterAll(
+		cfg,
+		&server.Plugin{},
+		&rpcPlugin.Plugin{},
+		l,
+		&jobs.Plugin{},
+		&resetter.Plugin{},
+		&informer.Plugin{},
+		&natsPlugin.Plugin{},
+	)
+	assert.NoError(t, err)
+
+	err = cont.Init()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ch, err := cont.Serve()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
+	stopCh := make(chan struct{}, 1)
+
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case e := <-ch:
+				assert.Fail(t, "error", e.Error.Error())
+				err = cont.Stop()
+				if err != nil {
+					assert.FailNow(t, "error", err.Error())
+				}
+			case <-sig:
+				err = cont.Stop()
+				if err != nil {
+					assert.FailNow(t, "error", err.Error())
+				}
+				return
+			case <-stopCh:
+				// timeout
+				err = cont.Stop()
+				if err != nil {
+					assert.FailNow(t, "error", err.Error())
+				}
+				return
+			}
+		}
+	}()
+
+	time.Sleep(time.Second * 3)
+
+	conn, err := nats.Connect("nats://127.0.0.1:4222",
+		nats.NoEcho(),
+		nats.Timeout(time.Minute),
+		nats.MaxReconnects(-1),
+		nats.PingInterval(time.Second*10),
+		nats.ReconnectWait(time.Second),
+	)
+	require.NoError(t, err)
+
+	js, err := jetstream.New(conn)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+
+	stream, _ := js.Stream(ctx, "foo-nats-message-subject-as-header")
+	si, err := stream.Info(ctx)
+	if err != nil {
+		if err.Error() == "nats: stream not found" {
+			// skip
+		} else {
+			t.Fatal(err)
+		}
+	}
+
+	if si == nil {
+		_, err = js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
+			Name:     "foo-nats-message-subject-as-header",
+			Subjects: []string{"nats-message-subject-as-header.*"},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	_, err = js.PublishMsg(ctx, &nats.Msg{
+		Data:    []byte("foo-barrrrrr-bazzzzz"),
+		Subject: "default-nats-message-subject-as-header.current-subject",
+	})
+	require.NoError(t, err)
+
+	time.Sleep(time.Second * 10)
+	helpers.DestroyPipelines("127.0.0.1:6001", "test-nats-message-subject-as-header")
+
+	stopCh <- struct{}{}
+	wg.Wait()
+
+	assert.Equal(t, 1, oLogger.FilterMessageSnippet("pipeline was started").Len())
+	assert.Equal(t, 1, oLogger.FilterMessageSnippet("pipeline was stopped").Len())
+	assert.Equal(t, 1, oLogger.FilterMessageSnippet("job processing was started").Len())
+	assert.Equal(t, 1, oLogger.FilterMessageSnippet("job was processed successfully").Len())
+	assert.Equal(t, 0, oLogger.FilterMessageSnippet("jobs protocol error").Len())
+
+	t.Cleanup(func() {
+		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "foo-nats-message-subject-as-header")
+		t.Log(errc)
+	})
+}
+
 func declareNATSPipe(address, subj, stream string) func(t *testing.T) {
 	return func(t *testing.T) {
 		conn, err := net.Dial("tcp", address)
