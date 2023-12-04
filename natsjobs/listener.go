@@ -133,7 +133,7 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 				if item.headers == nil {
 					item.headers = make(map[string][]string, 1)
 				}
-				item.headers[NatsSubjectHeaderKey] = []string{m.Subject()}
+				item.headers[subjectHeaderKey] = []string{m.Subject()}
 
 				c.prop.Inject(ctx, propagation.HeaderCarrier(item.headers))
 				c.queue.Insert(item)

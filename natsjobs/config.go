@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	NatsSubjectHeaderKey string = "x-nats-subject"
+	subjectHeaderKey string = "x-nats-subject"
 
 	pipeSubject            string = "subject"
 	pipeStream             string = "stream"
