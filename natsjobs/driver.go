@@ -295,7 +295,7 @@ func (c *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 
 	c.listenerStart()
 
-	c.log.Debug("pipeline was started", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
+	c.log.Debug("pipeline was started", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int("elapsed", time.Since(start).Milliseconds()))
 	return nil
 }
 
@@ -325,7 +325,7 @@ func (c *Driver) Pause(ctx context.Context, p string) error {
 
 	c.stopCh <- struct{}{}
 
-	c.log.Debug("pipeline was paused", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
+	c.log.Debug("pipeline was paused", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int("elapsed", time.Since(start).Milliseconds()))
 
 	return nil
 }
@@ -356,7 +356,7 @@ func (c *Driver) Resume(ctx context.Context, p string) error {
 
 	atomic.AddUint32(&c.listeners, 1)
 
-	c.log.Debug("pipeline was resumed", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
+	c.log.Debug("pipeline was resumed", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int("elapsed", time.Since(start).Milliseconds()))
 
 	return nil
 }
@@ -425,7 +425,7 @@ func (c *Driver) Stop(ctx context.Context) error {
 	}
 
 	c.conn.Close()
-	c.log.Debug("pipeline was stopped", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Duration("elapsed", time.Since(start)))
+	c.log.Debug("pipeline was stopped", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int("elapsed", time.Since(start).Milliseconds()))
 
 	return nil
 }
