@@ -86,9 +86,12 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 				item.Options.Pipeline = (*c.pipeline.Load()).Name()
 				item.Options.stopped = &c.stopped
 
-				// save the ack, nak and requeue functions
+				// save the ack, nak, term and requeue functions
 				item.Options.ack = m.Ack
 				item.Options.nak = m.Nak
+				item.Options.term = m.Term
+				item.Options.nakWithDelay = m.NakWithDelay
+
 				item.Options.requeueFn = c.requeue
 				// sequence needed for the requeue
 				item.Options.seq = meta.Sequence.Stream

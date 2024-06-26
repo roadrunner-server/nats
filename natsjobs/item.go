@@ -3,13 +3,17 @@ package natsjobs
 import (
 	"context"
 	stderr "errors"
+	"maps"
 	"sync/atomic"
 	"time"
 
 	"github.com/goccy/go-json"
 	"github.com/nats-io/nats.go/jetstream"
+	"github.com/roadrunner-server/api/v4/plugins/v4/jobs"
 	"github.com/roadrunner-server/errors"
 )
+
+var _ jobs.Job = (*Item)(nil)
 
 type Item struct {
 	// Job contains name of job broker (usually PHP class).
@@ -43,6 +47,8 @@ type Options struct {
 	requeueFn      func(*Item) error
 	ack            func() error
 	nak            func() error
+	term           func() error
+	nakWithDelay   func(time.Duration) error
 	stream         string
 	seq            uint64
 	sub            jetstream.Stream
@@ -135,12 +141,26 @@ func (i *Item) Nack() error {
 	return i.Options.nak()
 }
 
-func (i *Item) Requeue(headers map[string][]string, _ int64) error {
+func (i *Item) NackWithOptions(requeue bool, delay int) error {
+	if atomic.LoadUint64(i.Options.stopped) == 1 {
+		return errors.Str("failed to NACK the JOB, the pipeline is probably stopped")
+	}
+
+	// if user requested to requeue the message
+	if requeue {
+		return i.Options.nakWithDelay(time.Second * time.Duration(delay))
+	}
+
+	// if user requested to delete the message
+	return i.Options.term()
+}
+
+func (i *Item) Requeue(headers map[string][]string, _ int) error {
 	if atomic.LoadUint64(i.Options.stopped) == 1 {
 		return errors.Str("failed to acknowledge the JOB, the pipeline is probably stopped")
 	}
-	// overwrite the delay
-	i.headers = headers
+
+	maps.Copy(i.headers, headers)
 
 	err := i.Options.requeueFn(i)
 	if err != nil {
