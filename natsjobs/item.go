@@ -16,19 +16,19 @@ import (
 var _ jobs.Job = (*Item)(nil)
 
 type Item struct {
-	// Job contains name of job broker (usually PHP class).
+	// Job contains the name of job broker (usually PHP class).
 	Job string `json:"job"`
-	// Ident is unique identifier of the job, should be provided from outside
+	// Ident is a unique identifier of the job, should be provided from outside
 	Ident string `json:"id"`
 	// Payload is string data (usually JSON) passed to Job broker.
 	Payload []byte `json:"payload"`
 	// Headers with key-values pairs
 	headers map[string][]string
-	// Options contains set of PipelineOptions specific to job execution. Can be empty.
+	// Options contain a set of PipelineOptions specific to job execution. Can be empty.
 	Options *Options `json:"options,omitempty"`
 }
 
-// Options carry information about how to handle given job.
+// Options carry information about how to handle a given job.
 type Options struct {
 	// Priority is job priority, default - 10
 	Priority int64 `json:"priority"`
@@ -54,7 +54,7 @@ type Options struct {
 	sub            jetstream.Stream
 }
 
-// DelayDuration returns delay duration in a form of time.Duration.
+// DelayDuration returns delay duration in the form of time.Duration.
 func (o *Options) DelayDuration() time.Duration {
 	return time.Second * time.Duration(o.Delay)
 }
@@ -146,12 +146,12 @@ func (i *Item) NackWithOptions(requeue bool, delay int) error {
 		return errors.Str("failed to NACK the JOB, the pipeline is probably stopped")
 	}
 
-	// if user requested to requeue the message
+	// if the user requested to requeue the message
 	if requeue {
 		return i.Options.nakWithDelay(time.Second * time.Duration(delay))
 	}
 
-	// if user requested to delete the message
+	// if the user requested to delete the message
 	return i.Options.term()
 }
 
@@ -164,7 +164,7 @@ func (i *Item) Requeue(headers map[string][]string, _ int) error {
 
 	err := i.Options.requeueFn(i)
 	if err != nil {
-		// do not nak the message if it was an auto acknowledged
+		// do not nak the message if it was auto acknowledged
 		if !i.Options.AutoAck {
 			errNak := i.Options.nak()
 			if errNak != nil {
