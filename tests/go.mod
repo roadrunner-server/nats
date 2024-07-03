@@ -14,7 +14,7 @@ require (
 	github.com/roadrunner-server/informer/v4 v4.5.5
 	github.com/roadrunner-server/jobs/v4 v4.10.0
 	github.com/roadrunner-server/logger/v4 v4.4.5
-	github.com/roadrunner-server/nats/v4 v4.6.9
+	github.com/roadrunner-server/nats/v5 v5.0.0
 	github.com/roadrunner-server/otel/v4 v4.5.5
 	github.com/roadrunner-server/resetter/v4 v4.3.5
 	github.com/roadrunner-server/rpc/v4 v4.4.5
@@ -23,7 +23,7 @@ require (
 	go.uber.org/zap v1.27.0
 )
 
-replace github.com/roadrunner-server/nats/v4 => ../
+replace github.com/roadrunner-server/nats/v5 => ../
 
 exclude go.temporal.io/api v1.26.1
 
@@ -80,8 +80,8 @@ require (
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.52.0 // indirect
-	go.opentelemetry.io/contrib/propagators/jaeger v1.27.0 // indirect
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.53.0 // indirect
+	go.opentelemetry.io/contrib/propagators/jaeger v1.28.0 // indirect
 	go.opentelemetry.io/otel v1.28.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.28.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.28.0 // indirect

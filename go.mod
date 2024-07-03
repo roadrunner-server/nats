@@ -1,4 +1,4 @@
-module github.com/roadrunner-server/nats/v4
+module github.com/roadrunner-server/nats/v5
 
 go 1.22.5
 
@@ -9,7 +9,7 @@ require (
 	github.com/roadrunner-server/api/v4 v4.15.0
 	github.com/roadrunner-server/endure/v2 v2.4.5
 	github.com/roadrunner-server/errors v1.4.0
-	go.opentelemetry.io/contrib/propagators/jaeger v1.27.0
+	go.opentelemetry.io/contrib/propagators/jaeger v1.28.0
 	go.opentelemetry.io/otel v1.28.0
 	go.opentelemetry.io/otel/sdk v1.28.0
 	go.opentelemetry.io/otel/trace v1.28.0
