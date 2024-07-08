@@ -724,9 +724,7 @@ func TestNATSRaw(t *testing.T) {
 	stream, _ := js.Stream(ctx, "foo-raw")
 	si, err := stream.Info(ctx)
 	if err != nil {
-		if err.Error() == "nats: stream not found" {
-			// skip
-		} else {
+		if err.Error() != "nats: stream not found" {
 			t.Fatal(err)
 		}
 	}
@@ -987,7 +985,7 @@ func TestNATSOTEL(t *testing.T) {
 	stopCh <- struct{}{}
 	wg.Wait()
 
-	resp, err := http.Get("http://127.0.0.1:9411/api/v2/spans?serviceName=rr_test_nats")
+	resp, err := http.Get("http://127.0.0.1:9411/api/v2/spans?serviceName=rr_test_nats") //nolint:noctx
 	assert.NoError(t, err)
 
 	buf, err := io.ReadAll(resp.Body)
@@ -1109,9 +1107,7 @@ func TestNATSMessageSubjectAsHeader(t *testing.T) {
 	stream, _ := js.Stream(ctx, "foo-nats-message-subject-as-header")
 	si, err := stream.Info(ctx)
 	if err != nil {
-		if err.Error() == "nats: stream not found" {
-			// skip
-		} else {
+		if err.Error() != "nats: stream not found" {
 			t.Fatal(err)
 		}
 	}
