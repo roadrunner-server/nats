@@ -10,7 +10,7 @@ require (
 	github.com/nats-io/nats.go v1.36.0
 	github.com/roadrunner-server/api/v4 v4.16.0
 	github.com/roadrunner-server/endure/v2 v2.4.6
-	github.com/roadrunner-server/errors v1.4.0
+	github.com/roadrunner-server/errors v1.4.1
 	go.opentelemetry.io/contrib/propagators/jaeger v1.28.0
 	go.opentelemetry.io/otel v1.28.0
 	go.opentelemetry.io/otel/sdk v1.28.0
