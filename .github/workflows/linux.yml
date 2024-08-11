@@ -66,7 +66,7 @@ jobs:
           cd tests
           mkdir ./coverage-ci
 
-          docker-compose -f env/docker-compose-nats.yaml up -d
+          docker compose -f env/docker-compose-nats.yaml up -d
           sleep 30
           if [ "$(docker ps -q -f status=running -f name=nats_container)" ]; then
           echo "NATS Docker container started successfully."
