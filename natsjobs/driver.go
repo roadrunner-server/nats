@@ -229,7 +229,7 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.
 		deleteAfterAck:     pipe.Bool(pipeDeleteAfterAck, false),
 		deliverNew:         pipe.Bool(pipeDeliverNew, false),
 		deleteStreamOnStop: pipe.Bool(pipeDeleteStreamOnStop, false),
-		rateLimit:          uint64(pipe.Int(pipeRateLimit, 1000)),
+		rateLimit:          uint64(pipe.Int(pipeRateLimit, 1000)), //nolint:gosec
 		msgCh:              make(chan jetstream.Msg, pipe.Int(pipePrefetch, 100)),
 	}
 
@@ -369,7 +369,7 @@ func (c *Driver) State(ctx context.Context) (*jobs.State, error) {
 
 	st := &jobs.State{
 		Pipeline: pipe.Name(),
-		Priority: uint64(pipe.Priority()),
+		Priority: uint64(pipe.Priority()), //nolint:gosec
 		Driver:   pipe.Driver(),
 		Queue:    c.subject,
 		Ready:    ready(atomic.LoadUint32(&c.listeners)),
