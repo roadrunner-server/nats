@@ -2,7 +2,7 @@ module github.com/roadrunner-server/nats/v5
 
 go 1.23
 
-toolchain go1.23.1
+toolchain go1.23.2
 
 require (
 	github.com/goccy/go-json v0.10.3
