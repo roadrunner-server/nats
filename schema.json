@@ -1,0 +1,82 @@
+{
+  "$id": "https://raw.githubusercontent.com/roadrunner-server/nats/refs/heads/master/schema.json",
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "title": "roadrunner-nats",
+  "description": "The schema contains all the valid configuration parameters for the NATS plugin for the roadrunner job system.",
+  "definitions": {
+    "pipeline": {
+      "type": "object",
+      "required": [
+        "driver"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "driver": {
+          "type": "string",
+          "enum": [
+            "nats"
+          ]
+        },
+        "config": {
+          "type": "object",
+          "description": "Configuration for the NATS driver.",
+          "additionalProperties": false,
+          "properties": {
+            "priority": {
+              "$ref": "https://raw.githubusercontent.com/roadrunner-server/jobs/refs/heads/master/schema.json#/definitions/PipelineProperties/priority"
+            },
+            "prefetch": {
+              "$ref": "https://raw.githubusercontent.com/roadrunner-server/jobs/refs/heads/master/schema.json#/definitions/PipelineProperties/prefetch"
+            },
+            "consume_all": {
+              "$ref": "https://raw.githubusercontent.com/roadrunner-server/jobs/refs/heads/master/schema.json#/definitions/PipelineProperties/consume_all"
+            },
+            "subject": {
+              "description": "NATS subject",
+              "type": "string",
+              "default": "default"
+            },
+            "stream": {
+              "description": "NATS stream",
+              "type": "string",
+              "default": "default-stream"
+            },
+            "deliver_new": {
+              "description": "Whether to only receive messages that were created after the consumer was created.",
+              "type": "boolean",
+              "default": false
+            },
+            "rate_limit": {
+              "description": "Consumer rate-limiter in bytes. See https://docs.nats.io/jetstream/concepts/consumers#ratelimit",
+              "type": "integer",
+              "default": 1000,
+              "minimum": 0
+            },
+            "delete_stream_on_stop": {
+              "description": "Whether to delete the stream after the pipeline is stopped.",
+              "type": "boolean",
+              "default": false
+            },
+            "delete_after_ack": {
+              "description": "Whether to delete messages from the stream after successful acknowledgement.",
+              "type": "boolean",
+              "default": false
+            }
+          }
+        }
+      }
+    },
+    "driver": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Configuration options for the NATS driver.",
+      "properties": {
+        "addr": {
+          "description": "NATS server address.",
+          "type": "string",
+          "default": "nats://127.0.0.1:4222"
+        }
+      }
+    }
+  }
+}
