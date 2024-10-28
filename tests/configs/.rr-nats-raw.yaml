@@ -33,7 +33,6 @@ jobs:
         prefetch: 100
         subject: default-raw.*
         stream: foo-raw
-        consume_all: true
         delete_after_ack: true
         deliver_new: true
         priority: 1
