@@ -2,6 +2,7 @@ package natsjobs
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -68,6 +69,7 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 				c.unpack(m.Data(), item)
 
 				item.Options.inProgressFunc = m.InProgress
+				fmt.Println("test")
 				item.startHeartbeat(c.log)
 
 				ctx := c.prop.Extract(context.Background(), propagation.HeaderCarrier(item.headers))

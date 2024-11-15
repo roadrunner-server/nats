@@ -3,6 +3,7 @@ package natsjobs
 import (
 	"context"
 	stderr "errors"
+	"fmt"
 	"go.uber.org/zap"
 	"maps"
 	"sync/atomic"
@@ -111,6 +112,7 @@ func (i *Item) Context() ([]byte, error) {
 }
 
 func (i *Item) startHeartbeat(log *zap.Logger) {
+	fmt.Println("start heart beat")
 	ctx, cancel := context.WithCancel(context.Background())
 	i.Options.heartbeat = cancel
 
