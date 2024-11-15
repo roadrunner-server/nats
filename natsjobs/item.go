@@ -144,7 +144,6 @@ func (i *Item) stopHeartbeat() {
 }
 
 func (i *Item) Ack() error {
-	i.stopHeartbeat()
 	if atomic.LoadUint64(i.Options.stopped) == 1 {
 		return errors.Str("failed to acknowledge the JOB, the pipeline is probably stopped")
 	}
