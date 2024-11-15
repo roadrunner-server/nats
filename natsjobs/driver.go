@@ -2,6 +2,7 @@ package natsjobs
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -272,7 +273,6 @@ func (c *Driver) Push(ctx context.Context, job jobs.Message) error {
 
 func (c *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 	start := time.Now().UTC()
-	c.log.Error("run")
 	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "nats_run")
 	defer span.End()
 
@@ -296,7 +296,6 @@ func (c *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 		return errors.E(op, err)
 	}
 
-	c.log.Debug("listenerStart")
 	c.listenerStart()
 
 	c.log.Debug("pipeline was started", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))
@@ -408,7 +407,10 @@ func (c *Driver) Stop(ctx context.Context) error {
 	// remove all items associated with the current pipeline
 	_ = c.queue.Remove(pipe.Name())
 
+	c.log.Error("aaa")
+	c.log.Error(fmt.Sprintf("%v", c.purgeStreamOnStop))
 	if atomic.LoadUint32(&c.listeners) > 0 && c.purgeStreamOnStop {
+		c.log.Error("bbb")
 		err := c.stream.Purge(ctx)
 		if err != nil {
 			c.log.Error("drain error", zap.Error(err))
