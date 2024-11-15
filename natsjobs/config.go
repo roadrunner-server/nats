@@ -7,14 +7,14 @@ import (
 const (
 	subjectHeaderKey string = "x-nats-subject"
 
-	pipeSubject             string = "subject"
-	pipeStream              string = "stream"
-	pipePrefetch            string = "prefetch"
-	pipeDeleteAfterAck      string = "delete_after_ack"
-	pipeDeliverNew          string = "deliver_new"
-	pipeRateLimit           string = "rate_limit"
-	pipeDeleteStreamOnStop  string = "delete_stream_on_stop"
-	pipeReserveStreamOnStop string = "reserve_stream_on_stop"
+	pipeSubject              string = "subject"
+	pipeStream               string = "stream"
+	pipePrefetch             string = "prefetch"
+	pipeDeleteAfterAck       string = "delete_after_ack"
+	pipeDeliverNew           string = "deliver_new"
+	pipeRateLimit            string = "rate_limit"
+	pipeDeleteStreamOnStop   string = "delete_stream_on_stop"
+	pipeRetainStreamMessages string = "retain_stream_messages"
 )
 
 type config struct {
@@ -22,15 +22,15 @@ type config struct {
 	// NATS URL
 	Addr string `mapstructure:"addr"`
 
-	Priority            int64  `mapstructure:"priority"`
-	Subject             string `mapstructure:"subject"`
-	StreamID            string `mapstructure:"stream"`
-	Prefetch            int    `mapstructure:"prefetch"`
-	RateLimit           uint64 `mapstructure:"rate_limit"`
-	DeleteAfterAck      bool   `mapstructure:"delete_after_ack"`
-	DeliverNew          bool   `mapstructure:"deliver_new"`
-	DeleteStreamOnStop  bool   `mapstructure:"delete_stream_on_stop"`
-	ReserveStreamOnStop bool   `mapstructure:"reserve_stream_on_stop"`
+	Priority             int64  `mapstructure:"priority"`
+	Subject              string `mapstructure:"subject"`
+	StreamID             string `mapstructure:"stream"`
+	Prefetch             int    `mapstructure:"prefetch"`
+	RateLimit            uint64 `mapstructure:"rate_limit"`
+	DeleteAfterAck       bool   `mapstructure:"delete_after_ack"`
+	DeliverNew           bool   `mapstructure:"deliver_new"`
+	DeleteStreamOnStop   bool   `mapstructure:"delete_stream_on_stop"`
+	RetainStreamMessages bool   `mapstructure:"retain_stream_messages"`
 }
 
 func (c *config) InitDefaults() {
