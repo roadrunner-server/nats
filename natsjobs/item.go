@@ -121,6 +121,7 @@ func (i *Item) startHeartbeat(log *zap.Logger) {
 		for {
 			select {
 			case <-ticker.C:
+				log.Debug("heartbeat")
 				if err := i.Options.inProgressFunc(); err != nil {
 					log.Warn("failed to send InProgress heartbeat, will retry",
 						zap.Error(err),
