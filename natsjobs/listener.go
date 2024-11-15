@@ -19,6 +19,7 @@ func (c *Driver) listenerInit() error {
 		Name:          id,
 		MaxAckPending: c.prefetch,
 		AckPolicy:     jetstream.AckExplicitPolicy,
+		MaxDeliver:    1,
 	})
 	if err != nil {
 		return err
@@ -68,7 +69,7 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 				c.unpack(m.Data(), item)
 
 				item.Options.inProgressFunc = m.InProgress
-				item.startHeartbeat(c.log)
+				//item.startHeartbeat(c.log)
 
 				ctx := c.prop.Extract(context.Background(), propagation.HeaderCarrier(item.headers))
 				ctx, span := c.tracer.Tracer(tracerName).Start(ctx, "nats_listener")

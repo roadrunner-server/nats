@@ -110,6 +110,7 @@ func (i *Item) Context() ([]byte, error) {
 	return ctx, nil
 }
 
+// startHeartbeat
 func (i *Item) startHeartbeat(log *zap.Logger) {
 	ctx, cancel := context.WithCancel(context.Background())
 	i.Options.heartbeat = cancel
@@ -144,7 +145,7 @@ func (i *Item) stopHeartbeat() {
 }
 
 func (i *Item) Ack() error {
-	i.stopHeartbeat()
+	//i.stopHeartbeat()
 	if atomic.LoadUint64(i.Options.stopped) == 1 {
 		return errors.Str("failed to acknowledge the JOB, the pipeline is probably stopped")
 	}
@@ -169,7 +170,7 @@ func (i *Item) Ack() error {
 }
 
 func (i *Item) Nack() error {
-	i.stopHeartbeat()
+	//i.stopHeartbeat()
 	if atomic.LoadUint64(i.Options.stopped) == 1 {
 		return errors.Str("failed to acknowledge the JOB, the pipeline is probably stopped")
 	}
