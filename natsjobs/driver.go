@@ -2,7 +2,6 @@ package natsjobs
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -273,7 +272,7 @@ func (c *Driver) Push(ctx context.Context, job jobs.Message) error {
 
 func (c *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 	start := time.Now().UTC()
-	fmt.Println("run")
+	c.log.Error("run")
 	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "nats_run")
 	defer span.End()
 
@@ -297,6 +296,7 @@ func (c *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 		return errors.E(op, err)
 	}
 
+	c.log.Debug("listenerStart")
 	c.listenerStart()
 
 	c.log.Debug("pipeline was started", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))
