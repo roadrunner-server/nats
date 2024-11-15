@@ -1,4 +1,4 @@
-module github.com/shellphy/nats/v5
+module github.com/roadrunner-server/nats/v5
 
 go 1.23
 
