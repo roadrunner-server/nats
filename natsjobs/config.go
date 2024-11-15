@@ -14,6 +14,7 @@ const (
 	pipeDeliverNew         string = "deliver_new"
 	pipeRateLimit          string = "rate_limit"
 	pipeDeleteStreamOnStop string = "delete_stream_on_stop"
+	pipePurgeStreamOnStop  string = "purge_stream_on_stop"
 )
 
 type config struct {
@@ -29,6 +30,7 @@ type config struct {
 	DeleteAfterAck     bool   `mapstructure:"delete_after_ack"`
 	DeliverNew         bool   `mapstructure:"deliver_new"`
 	DeleteStreamOnStop bool   `mapstructure:"delete_stream_on_stop"`
+	PurgeStreamOnStop  bool   `mapstructure:"purge_stream_on_stop"`
 }
 
 func (c *config) InitDefaults() {
@@ -55,4 +57,6 @@ func (c *config) InitDefaults() {
 	if c.Prefetch == 0 {
 		c.Prefetch = 10
 	}
+
+	c.PurgeStreamOnStop = true
 }

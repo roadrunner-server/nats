@@ -62,6 +62,7 @@ type Driver struct {
 	deleteAfterAck     bool
 	deliverNew         bool
 	deleteStreamOnStop bool
+	purgeStreamOnStop  bool
 }
 
 type consumer struct {
@@ -146,6 +147,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 		streamID:           conf.StreamID,
 		deleteAfterAck:     conf.DeleteAfterAck,
 		deleteStreamOnStop: conf.DeleteStreamOnStop,
+		purgeStreamOnStop:  conf.PurgeStreamOnStop,
 		prefetch:           conf.Prefetch,
 		deliverNew:         conf.DeliverNew,
 		rateLimit:          conf.RateLimit,
@@ -229,6 +231,7 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.
 		deleteAfterAck:     pipe.Bool(pipeDeleteAfterAck, false),
 		deliverNew:         pipe.Bool(pipeDeliverNew, false),
 		deleteStreamOnStop: pipe.Bool(pipeDeleteStreamOnStop, false),
+		purgeStreamOnStop:  pipe.Bool(pipePurgeStreamOnStop, true),
 		rateLimit:          uint64(pipe.Int(pipeRateLimit, 1000)), //nolint:gosec
 		msgCh:              make(chan jetstream.Msg, pipe.Int(pipePrefetch, 100)),
 	}
@@ -404,7 +407,7 @@ func (c *Driver) Stop(ctx context.Context) error {
 	// remove all items associated with the current pipeline
 	_ = c.queue.Remove(pipe.Name())
 
-	if atomic.LoadUint32(&c.listeners) > 0 {
+	if atomic.LoadUint32(&c.listeners) > 0 && c.purgeStreamOnStop {
 		err := c.stream.Purge(ctx)
 		if err != nil {
 			c.log.Error("drain error", zap.Error(err))

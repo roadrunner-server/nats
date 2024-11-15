@@ -64,19 +64,11 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 					continue
 				}
 
-				err = m.InProgress()
-				if err != nil {
-					errn := m.Nak()
-					if errn != nil {
-						c.log.Error("failed to send Nak state", zap.Error(errn), zap.Error(err))
-						continue
-					}
-					c.log.Error("failed to send InProgress state", zap.Error(err))
-					continue
-				}
-
 				item := &Item{}
 				c.unpack(m.Data(), item)
+
+				item.Options.inProgressFunc = m.InProgress
+				item.startHeartbeat(c.log)
 
 				ctx := c.prop.Extract(context.Background(), propagation.HeaderCarrier(item.headers))
 				ctx, span := c.tracer.Tracer(tracerName).Start(ctx, "nats_listener")

@@ -3,6 +3,7 @@ package natsjobs
 import (
 	"context"
 	stderr "errors"
+	"go.uber.org/zap"
 	"maps"
 	"sync/atomic"
 	"time"
@@ -52,6 +53,8 @@ type Options struct {
 	stream         string
 	seq            uint64
 	sub            jetstream.Stream
+	heartbeat      context.CancelFunc
+	inProgressFunc func() error
 }
 
 // DelayDuration returns delay duration in the form of time.Duration.
@@ -107,6 +110,38 @@ func (i *Item) Context() ([]byte, error) {
 	return ctx, nil
 }
 
+func (i *Item) startHeartbeat(log *zap.Logger) {
+	ctx, cancel := context.WithCancel(context.Background())
+	i.Options.heartbeat = cancel
+
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				if err := i.Options.inProgressFunc(); err != nil {
+					log.Warn("failed to send InProgress heartbeat, will retry",
+						zap.Error(err),
+						zap.String("job_id", i.Ident),
+						zap.String("pipeline", i.Options.Pipeline))
+					continue
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+}
+
+func (i *Item) stopHeartbeat() {
+	if i.Options.heartbeat != nil {
+		i.Options.heartbeat()
+		i.Options.heartbeat = nil
+	}
+}
+
 func (i *Item) Ack() error {
 	if atomic.LoadUint64(i.Options.stopped) == 1 {
 		return errors.Str("failed to acknowledge the JOB, the pipeline is probably stopped")
@@ -138,6 +173,7 @@ func (i *Item) Nack() error {
 	if i.Options.AutoAck {
 		return nil
 	}
+	i.stopHeartbeat()
 	return i.Options.nak()
 }
 
