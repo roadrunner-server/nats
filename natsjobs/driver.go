@@ -2,7 +2,6 @@ package natsjobs
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -55,15 +54,15 @@ type Driver struct {
 	msgCh        chan jetstream.Msg
 
 	// config
-	priority           int64
-	subject            string
-	streamID           string
-	prefetch           int
-	rateLimit          uint64
-	deleteAfterAck     bool
-	deliverNew         bool
-	deleteStreamOnStop bool
-	purgeStreamOnStop  bool
+	priority            int64
+	subject             string
+	streamID            string
+	prefetch            int
+	rateLimit           uint64
+	deleteAfterAck      bool
+	deliverNew          bool
+	deleteStreamOnStop  bool
+	reserveStreamOnStop bool
 }
 
 type consumer struct {
@@ -143,16 +142,16 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 		stream:    stream,
 		jetstream: js,
 
-		priority:           conf.Priority,
-		subject:            conf.Subject,
-		streamID:           conf.StreamID,
-		deleteAfterAck:     conf.DeleteAfterAck,
-		deleteStreamOnStop: conf.DeleteStreamOnStop,
-		purgeStreamOnStop:  conf.PurgeStreamOnStop,
-		prefetch:           conf.Prefetch,
-		deliverNew:         conf.DeliverNew,
-		rateLimit:          conf.RateLimit,
-		msgCh:              make(chan jetstream.Msg, conf.Prefetch),
+		priority:            conf.Priority,
+		subject:             conf.Subject,
+		streamID:            conf.StreamID,
+		deleteAfterAck:      conf.DeleteAfterAck,
+		deleteStreamOnStop:  conf.DeleteStreamOnStop,
+		reserveStreamOnStop: conf.ReserveStreamOnStop,
+		prefetch:            conf.Prefetch,
+		deliverNew:          conf.DeliverNew,
+		rateLimit:           conf.RateLimit,
+		msgCh:               make(chan jetstream.Msg, conf.Prefetch),
 	}
 
 	cs.pipeline.Store(&pipe)
@@ -225,16 +224,16 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.
 		stream:    stream,
 		jetstream: js,
 
-		priority:           pipe.Priority(),
-		subject:            defSubject,
-		streamID:           defStream,
-		prefetch:           pipe.Int(pipePrefetch, 100),
-		deleteAfterAck:     pipe.Bool(pipeDeleteAfterAck, false),
-		deliverNew:         pipe.Bool(pipeDeliverNew, false),
-		deleteStreamOnStop: pipe.Bool(pipeDeleteStreamOnStop, false),
-		purgeStreamOnStop:  pipe.Bool(pipePurgeStreamOnStop, true),
-		rateLimit:          uint64(pipe.Int(pipeRateLimit, 1000)), //nolint:gosec
-		msgCh:              make(chan jetstream.Msg, pipe.Int(pipePrefetch, 100)),
+		priority:            pipe.Priority(),
+		subject:             defSubject,
+		streamID:            defStream,
+		prefetch:            pipe.Int(pipePrefetch, 100),
+		deleteAfterAck:      pipe.Bool(pipeDeleteAfterAck, false),
+		deliverNew:          pipe.Bool(pipeDeliverNew, false),
+		deleteStreamOnStop:  pipe.Bool(pipeDeleteStreamOnStop, false),
+		reserveStreamOnStop: pipe.Bool(pipeReserveStreamOnStop, true),
+		rateLimit:           uint64(pipe.Int(pipeRateLimit, 1000)), //nolint:gosec
+		msgCh:               make(chan jetstream.Msg, pipe.Int(pipePrefetch, 100)),
 	}
 
 	cs.pipeline.Store(&pipe)
@@ -407,10 +406,7 @@ func (c *Driver) Stop(ctx context.Context) error {
 	// remove all items associated with the current pipeline
 	_ = c.queue.Remove(pipe.Name())
 
-	c.log.Error("aaa")
-	c.log.Error(fmt.Sprintf("%v", c.purgeStreamOnStop))
-	if atomic.LoadUint32(&c.listeners) > 0 && c.purgeStreamOnStop {
-		c.log.Error("bbb")
+	if atomic.LoadUint32(&c.listeners) > 0 && !c.reserveStreamOnStop {
 		err := c.stream.Purge(ctx)
 		if err != nil {
 			c.log.Error("drain error", zap.Error(err))
