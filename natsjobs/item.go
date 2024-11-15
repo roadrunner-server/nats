@@ -111,12 +111,11 @@ func (i *Item) Context() ([]byte, error) {
 }
 
 func (i *Item) startHeartbeat(log *zap.Logger) {
-	log.Error("ccc")
 	ctx, cancel := context.WithCancel(context.Background())
 	i.Options.heartbeat = cancel
 
 	go func() {
-		ticker := time.NewTicker(10 * time.Second)
+		ticker := time.NewTicker(15 * time.Second)
 		defer ticker.Stop()
 
 		for {
@@ -145,6 +144,7 @@ func (i *Item) stopHeartbeat() {
 }
 
 func (i *Item) Ack() error {
+	i.stopHeartbeat()
 	if atomic.LoadUint64(i.Options.stopped) == 1 {
 		return errors.Str("failed to acknowledge the JOB, the pipeline is probably stopped")
 	}
