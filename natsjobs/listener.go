@@ -68,9 +68,7 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 				c.unpack(m.Data(), item)
 
 				item.Options.inProgressFunc = m.InProgress
-				c.log.Error("aaa")
 				item.startHeartbeat(c.log)
-				c.log.Error("bbb")
 
 				ctx := c.prop.Extract(context.Background(), propagation.HeaderCarrier(item.headers))
 				ctx, span := c.tracer.Tracer(tracerName).Start(ctx, "nats_listener")

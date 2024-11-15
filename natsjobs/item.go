@@ -115,7 +115,7 @@ func (i *Item) startHeartbeat(log *zap.Logger) {
 	i.Options.heartbeat = cancel
 
 	go func() {
-		ticker := time.NewTicker(15 * time.Second)
+		ticker := time.NewTicker(20 * time.Second)
 		defer ticker.Stop()
 
 		for {
@@ -144,6 +144,7 @@ func (i *Item) stopHeartbeat() {
 }
 
 func (i *Item) Ack() error {
+	i.stopHeartbeat()
 	if atomic.LoadUint64(i.Options.stopped) == 1 {
 		return errors.Str("failed to acknowledge the JOB, the pipeline is probably stopped")
 	}
@@ -168,13 +169,13 @@ func (i *Item) Ack() error {
 }
 
 func (i *Item) Nack() error {
+	i.stopHeartbeat()
 	if atomic.LoadUint64(i.Options.stopped) == 1 {
 		return errors.Str("failed to acknowledge the JOB, the pipeline is probably stopped")
 	}
 	if i.Options.AutoAck {
 		return nil
 	}
-	i.stopHeartbeat()
 	return i.Options.nak()
 }
 

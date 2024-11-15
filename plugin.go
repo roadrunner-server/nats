@@ -38,7 +38,6 @@ func (p *Plugin) Init(log Logger, cfg Configurer) error {
 	}
 
 	p.log = log.NamedLogger(pluginName)
-	p.log.Error("init")
 	p.cfg = cfg
 	return nil
 }
