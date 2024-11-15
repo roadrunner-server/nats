@@ -54,11 +54,6 @@
               "type": "boolean",
               "default": false
             },
-            "retain_stream_messages": {
-              "description": "Whether to retain the stream messages after pipeline is stopped.",
-              "type": "boolean",
-              "default": false
-            },
             "delete_after_ack": {
               "description": "Whether to delete messages from the stream after successful acknowledgement.",
               "type": "boolean",
