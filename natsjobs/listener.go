@@ -19,6 +19,10 @@ func (c *Driver) listenerInit() error {
 		Name:          id,
 		MaxAckPending: c.prefetch,
 		AckPolicy:     jetstream.AckExplicitPolicy,
+
+		// If it is not set to 1, the message will be redelivered every 30 seconds, resulting in a duplicate task
+		// refer to https://docs.nats.io/nats-concepts/jetstream/consumers#General
+		MaxDeliver: 1,
 	})
 	if err != nil {
 		return err

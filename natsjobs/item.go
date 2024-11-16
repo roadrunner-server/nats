@@ -28,6 +28,11 @@ type Item struct {
 	Options *Options `json:"options,omitempty"`
 }
 
+type JsonItem struct {
+	*Item
+	Headers map[string][]string `json:"headers"`
+}
+
 // Options carry information about how to handle a given job.
 type Options struct {
 	// Priority is job priority, default - 10
