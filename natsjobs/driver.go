@@ -437,7 +437,10 @@ func (c *Driver) requeue(item *Item) error {
 		return errors.E(op, errors.Str("nats doesn't support delayed messages, see: https://github.com/nats-io/nats-streaming-server/issues/324"))
 	}
 
-	data, err := json.Marshal(item)
+	data, err := json.Marshal(&JsonItem{
+		Item:    item,
+		Headers: item.headers,
+	})
 	if err != nil {
 		return errors.E(op, err)
 	}
