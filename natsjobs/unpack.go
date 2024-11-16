@@ -12,8 +12,8 @@ const (
 )
 
 func (c *Driver) unpack(data []byte, item *Item) {
-	err := json.Unmarshal(data, item)
-	if err != nil {
+	aux := &JsonItem{Item: item}
+	if err := json.Unmarshal(data, aux); err != nil {
 		*item = Item{
 			Job:     auto,
 			Ident:   uuid.NewString(),
@@ -27,4 +27,5 @@ func (c *Driver) unpack(data []byte, item *Item) {
 		}
 		c.log.Debug("raw payload", zap.String("assigned ID", item.Ident))
 	}
+	item.headers = aux.Headers
 }
