@@ -251,7 +251,10 @@ func (c *Driver) Push(ctx context.Context, job jobs.Message) error {
 	j := fromJob(job)
 	c.prop.Inject(ctx, propagation.HeaderCarrier(j.headers))
 
-	data, err := json.Marshal(j)
+	data, err := json.Marshal(&JsonItem{
+		Item:    j,
+		Headers: j.headers,
+	})
 	if err != nil {
 		return errors.E(op, err)
 	}
