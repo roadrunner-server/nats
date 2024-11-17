@@ -17,7 +17,14 @@ $consumer = new Spiral\RoadRunner\Jobs\Consumer();
 
 while ($task = $consumer->waitTask()) {
     try {
-        sleep(1);
+        $h = $task->getHeader('test')[0] ?? 'undefined';
+        if ("test2" !== $h) {
+            throw new RuntimeException(sprintf(
+                "Expected header '%s', got '%s'",
+                "test2",
+                $h
+            ));
+        }
         $task->ack();
     } catch (\Throwable $e) {
         $task->error((string)$e);

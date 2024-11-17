@@ -22,7 +22,7 @@ while ($task = $consumer->waitTask()) {
             sleep(60);
         }
 
-        $task->complete();
+        $task->ack();
     } catch (\Throwable $e) {
         $task->error((string)$e);
     }

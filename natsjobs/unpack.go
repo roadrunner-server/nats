@@ -11,14 +11,15 @@ const (
 	auto string = "deduced_by_rr"
 )
 
-func (c *Driver) unpack(data []byte, item *Item) {
+func (c *Driver) unpack(data []byte, headers map[string][]string, item *Item) {
 	err := json.Unmarshal(data, item)
+	item.headers = headers
 	if err != nil {
 		*item = Item{
 			Job:     auto,
 			Ident:   uuid.NewString(),
 			Payload: data,
-			headers: make(map[string][]string, 2),
+			headers: headers,
 			Options: &Options{
 				Priority: (*c.pipeline.Load()).Priority(),
 				Pipeline: (*c.pipeline.Load()).Name(),
