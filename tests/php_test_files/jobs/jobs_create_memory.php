@@ -43,5 +43,5 @@ $task = $queue2->dispatch($task);
 $consumer = new Spiral\RoadRunner\Jobs\Consumer();
 
 while ($task = $consumer->waitTask()) {
-    $task->complete();
+    $task->ack();
 }

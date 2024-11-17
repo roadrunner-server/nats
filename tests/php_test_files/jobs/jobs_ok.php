@@ -17,7 +17,7 @@ $consumer = new Spiral\RoadRunner\Jobs\Consumer();
 
 while ($task = $consumer->waitTask()) {
     try {
-        $task->complete();
+        $task->ack();
     } catch (\Throwable $e) {
         $task->error((string)$e);
     }

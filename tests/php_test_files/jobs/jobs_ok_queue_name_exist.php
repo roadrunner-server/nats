@@ -21,7 +21,7 @@ while ($task = $consumer->waitTask()) {
             throw new RuntimeException('Queue name was not found');
         }
 
-        $task->complete();
+        $task->ack();
     } catch (\Throwable $e) {
         $task->error((string)$e);
     }

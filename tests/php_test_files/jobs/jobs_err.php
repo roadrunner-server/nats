@@ -21,9 +21,9 @@ while ($task = $consumer->waitTask()) {
         $total_attempts = (int)$task->getHeaderLine("attempts") + 1;
 
         if ($total_attempts > 3) {
-            $task->complete();
+            $task->ack();
         } else {
-            $task->withHeader("attempts",$total_attempts)->withDelay(5)->fail("failed", true);
+            $task->withHeader("attempts", $total_attempts)->withDelay(5)->nack("failed", true);
         }
     } catch (\Throwable $e) {
         $task->error((string)$e);

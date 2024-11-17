@@ -28,8 +28,8 @@ while ($task = $consumer->waitTask()) {
             ));
         }
 
-        $task->complete();
+        $task->ack();
     } catch (\Throwable $e) {
-        $task->fail((string)$e);
+        $task->nack((string)$e);
     }
 }
