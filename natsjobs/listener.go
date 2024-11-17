@@ -76,7 +76,7 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 				}
 
 				item := &Item{}
-				c.unpack(m.Data(), item)
+				c.unpack(m.Data(), m.Headers(), item)
 
 				ctx := c.prop.Extract(context.Background(), propagation.HeaderCarrier(item.headers))
 				ctx, span := c.tracer.Tracer(tracerName).Start(ctx, "nats_listener")

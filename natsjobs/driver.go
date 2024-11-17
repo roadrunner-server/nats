@@ -256,10 +256,10 @@ func (c *Driver) Push(ctx context.Context, job jobs.Message) error {
 		return errors.E(op, err)
 	}
 
-	_, err = c.jetstream.PublishMsg(ctx, &nats.Msg{
-		Data:    data,
-		Subject: c.subject,
-	})
+	msg := nats.NewMsg(c.subject)
+	msg.Data = data
+	msg.Header = j.headers
+	_, err = c.jetstream.PublishMsg(ctx, msg)
 	if err != nil {
 		return errors.E(op, err)
 	}
