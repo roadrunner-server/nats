@@ -44,7 +44,7 @@ type Driver struct {
 	pipeline        atomic.Pointer[jobs.Pipeline]
 	stopCh          chan struct{}
 	stopped         uint64
-	inProgressItems map[string]bool
+	inProgressItems sync.Map
 
 	// nats
 	consumer     *consumer
@@ -137,7 +137,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 		stopCh:          make(chan struct{}),
 		stopped:         0,
 		queue:           pq,
-		inProgressItems: make(map[string]bool),
+		inProgressItems: sync.Map{},
 
 		conn:      conn,
 		stream:    stream,

@@ -1330,6 +1330,7 @@ func TestNATSLongTaskErr(t *testing.T) {
 	wg.Wait()
 
 	require.Equal(t, 1, oLogger.FilterMessageSnippet("job processing was started").Len())
+	require.Equal(t, 1, oLogger.FilterMessageSnippet("job already in progress").Len())
 
 	t.Cleanup(func() {
 		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "test")
