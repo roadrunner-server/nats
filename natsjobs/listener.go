@@ -15,6 +15,9 @@ func (c *Driver) listenerInit() error {
 	id := uuid.NewString()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
+
+	// default AckWait is 30s, it means the server will resend the message if the client does not send inprogress state within 30s
+	// see https://docs.nats.io/nats-concepts/jetstream/consumers#general
 	cons, err := c.jetstream.CreateConsumer(ctx, c.streamID, jetstream.ConsumerConfig{
 		Name:          id,
 		MaxAckPending: c.prefetch,
