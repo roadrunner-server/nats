@@ -31,7 +31,7 @@ type config struct {
 	DeleteAfterAck     bool          `mapstructure:"delete_after_ack"`
 	DeliverNew         bool          `mapstructure:"deliver_new"`
 	DeleteStreamOnStop bool          `mapstructure:"delete_stream_on_stop"`
-	AckWait            time.Duration `mapstructure:"consumer_ack_wait"`
+	AckWait            time.Duration `mapstructure:"ack_wait"`
 }
 
 func (c *config) InitDefaults() {
