@@ -103,7 +103,7 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 				item.Options.Pipeline = (*c.pipeline.Load()).Name()
 				item.Options.stopped = &c.stopped
 
-				// wrap the ack, nak, term and nakWithDelay functions
+				// wrap the ack, nak, term, nakWithDelay and requeue functions
 				item.Options.ack = c.wrapCleanupFn(item.ID(), m.Ack)
 				item.Options.nak = c.wrapCleanupFn(item.ID(), m.Nak)
 				item.Options.term = c.wrapCleanupFn(item.ID(), m.Term)
@@ -134,7 +134,9 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 				// if auto ack is enabled, immediately execute ack
 				if item.Options.AutoAck {
 					c.log.Debug("auto_ack option enabled")
-					if err := item.Options.ack(); err != nil {
+					err := item.Options.ack()
+					if err != nil {
+						item = nil
 						c.log.Error("message acknowledge", zap.Error(err))
 						span.RecordError(err)
 						span.End()
@@ -142,8 +144,10 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 					}
 
 					if item.Options.deleteAfterAck {
-						if err := c.stream.DeleteMsg(context.Background(), meta.Sequence.Stream); err != nil {
+						err = c.stream.DeleteMsg(context.Background(), meta.Sequence.Stream)
+						if err != nil {
 							c.log.Error("delete message", zap.Error(err))
+							item = nil
 							span.RecordError(err)
 							span.End()
 							continue
