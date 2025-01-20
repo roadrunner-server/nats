@@ -42,15 +42,6 @@ func (c *Driver) listenerInit() error {
 	return nil
 }
 
-//	func (c *Driver) removeFromInProgressAfterOp(item *Item, op func() error) error {
-//		if err := op(); err != nil {
-//			return err
-//		}
-//		delete(c.inProgressItems, item.ID())
-//		return nil
-//	}
-//
-
 // wrapCleanupFn wrap the cleanup function to ensure the inProgressItems map is updated correctly
 func (c *Driver) wrapCleanupFn(id string, fn func() error) func() error {
 	return func() error {
