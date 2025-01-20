@@ -36,14 +36,15 @@ type Configurer interface {
 
 type Driver struct {
 	// system
-	log       *zap.Logger
-	queue     jobs.Queue
-	tracer    *sdktrace.TracerProvider
-	prop      propagation.TextMapPropagator
-	listeners uint32
-	pipeline  atomic.Pointer[jobs.Pipeline]
-	stopCh    chan struct{}
-	stopped   uint64
+	log             *zap.Logger
+	queue           jobs.Queue
+	tracer          *sdktrace.TracerProvider
+	prop            propagation.TextMapPropagator
+	listeners       uint32
+	pipeline        atomic.Pointer[jobs.Pipeline]
+	stopCh          chan struct{}
+	stopped         uint64
+	inProgressItems map[string]bool
 
 	// nats
 	consumer     *consumer
@@ -130,12 +131,13 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 	}
 
 	cs := &Driver{
-		tracer:  tracer,
-		prop:    prop,
-		log:     log,
-		stopCh:  make(chan struct{}),
-		stopped: 0,
-		queue:   pq,
+		tracer:          tracer,
+		prop:            prop,
+		log:             log,
+		stopCh:          make(chan struct{}),
+		stopped:         0,
+		queue:           pq,
+		inProgressItems: make(map[string]bool),
 
 		conn:      conn,
 		stream:    stream,

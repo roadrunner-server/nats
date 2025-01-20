@@ -42,6 +42,14 @@ func (c *Driver) listenerInit() error {
 	return nil
 }
 
+func (c *Driver) removeFromInProgressAfterOp(item *Item, op func() error) error {
+	if err := op(); err != nil {
+		return err
+	}
+	delete(c.inProgressItems, item.ID())
+	return nil
+}
+
 func (c *Driver) listenerStart() { //nolint:gocognit
 	go func() {
 		for {
@@ -64,22 +72,30 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 					continue
 				}
 
-				err = m.InProgress()
-				if err != nil {
-					errn := m.Nak()
-					if errn != nil {
-						c.log.Error("failed to send Nak state", zap.Error(errn), zap.Error(err))
-						continue
-					}
-					c.log.Error("failed to send InProgress state", zap.Error(err))
-					continue
-				}
-
 				item := &Item{}
 				c.unpack(m.Data(), m.Headers(), item)
 
 				ctx := c.prop.Extract(context.Background(), propagation.HeaderCarrier(item.headers))
 				ctx, span := c.tracer.Tracer(tracerName).Start(ctx, "nats_listener")
+
+				if _, exists := c.inProgressItems[item.ID()]; exists {
+					err = m.InProgress()
+					if err != nil {
+						errn := m.Nak()
+						if errn != nil {
+							c.log.Error("failed to send Nak state", zap.Error(errn), zap.Error(err))
+							continue
+						}
+						c.log.Error("failed to send InProgress state", zap.Error(err))
+						continue
+					}
+
+					c.log.Info("job already in progress", zap.String("id", item.ID()))
+					span.End()
+					continue
+				} else {
+					c.inProgressItems[item.ID()] = true
+				}
 
 				// set queue and pipeline
 				item.Options.Queue = c.streamID
@@ -87,12 +103,25 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 				item.Options.stopped = &c.stopped
 
 				// save the ack, nak, term and requeue functions
-				item.Options.ack = m.Ack
-				item.Options.nak = m.Nak
-				item.Options.term = m.Term
-				item.Options.nakWithDelay = m.NakWithDelay
-
-				item.Options.requeueFn = c.requeue
+				item.Options.ack = func() error {
+					return c.removeFromInProgressAfterOp(item, m.Ack)
+				}
+				item.Options.nak = func() error {
+					return c.removeFromInProgressAfterOp(item, m.Nak)
+				}
+				item.Options.term = func() error {
+					return c.removeFromInProgressAfterOp(item, m.Term)
+				}
+				item.Options.nakWithDelay = func(delay time.Duration) error {
+					return c.removeFromInProgressAfterOp(item, func() error {
+						return m.NakWithDelay(delay)
+					})
+				}
+				item.Options.requeueFn = func(item *Item) error {
+					return c.removeFromInProgressAfterOp(item, func() error {
+						return c.requeue(item)
+					})
+				}
 				// sequence needed for the requeue
 				item.Options.seq = meta.Sequence.Stream
 
@@ -109,7 +138,7 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 
 				if item.Options.AutoAck {
 					c.log.Debug("auto_ack option enabled")
-					err = m.Ack()
+					err = c.removeFromInProgressAfterOp(item, m.Ack)
 					if err != nil {
 						item = nil
 						c.log.Error("message acknowledge", zap.Error(err))
