@@ -1,6 +1,8 @@
 package natsjobs
 
 import (
+	"time"
+
 	"github.com/nats-io/nats.go"
 )
 
@@ -21,19 +23,23 @@ type config struct {
 	// NATS URL
 	Addr string `mapstructure:"addr"`
 
-	Priority           int64  `mapstructure:"priority"`
-	Subject            string `mapstructure:"subject"`
-	StreamID           string `mapstructure:"stream"`
-	Prefetch           int    `mapstructure:"prefetch"`
-	RateLimit          uint64 `mapstructure:"rate_limit"`
-	DeleteAfterAck     bool   `mapstructure:"delete_after_ack"`
-	DeliverNew         bool   `mapstructure:"deliver_new"`
-	DeleteStreamOnStop bool   `mapstructure:"delete_stream_on_stop"`
+	Priority           int64         `mapstructure:"priority"`
+	Subject            string        `mapstructure:"subject"`
+	StreamID           string        `mapstructure:"stream"`
+	Prefetch           int           `mapstructure:"prefetch"`
+	RateLimit          uint64        `mapstructure:"rate_limit"`
+	DeleteAfterAck     bool          `mapstructure:"delete_after_ack"`
+	DeliverNew         bool          `mapstructure:"deliver_new"`
+	DeleteStreamOnStop bool          `mapstructure:"delete_stream_on_stop"`
+	AckWait            time.Duration `mapstructure:"consumer_ack_wait"`
 }
 
 func (c *config) InitDefaults() {
 	if c.Addr == "" {
 		c.Addr = nats.DefaultURL
+	}
+	if c.AckWait == 0 {
+		c.AckWait = 30
 	}
 
 	if c.RateLimit == 0 {
