@@ -234,7 +234,7 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.
 		deleteAfterAck:     pipe.Bool(pipeDeleteAfterAck, false),
 		deliverNew:         pipe.Bool(pipeDeliverNew, false),
 		deleteStreamOnStop: pipe.Bool(pipeDeleteStreamOnStop, false),
-		ackWait:            conf.AckWait,
+		ackWait:            time.Duration(pipe.Int(pipeAckWait, 30)) * time.Second,
 		rateLimit:          uint64(pipe.Int(pipeRateLimit, 1000)), //nolint:gosec
 		msgCh:              make(chan jetstream.Msg, pipe.Int(pipePrefetch, 100)),
 	}
