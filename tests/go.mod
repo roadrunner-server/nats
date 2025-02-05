@@ -8,7 +8,7 @@ require (
 	github.com/Shopify/toxiproxy/v2 v2.11.0
 	github.com/goccy/go-json v0.10.5
 	github.com/google/uuid v1.6.0
-	github.com/nats-io/nats.go v1.38.0
+	github.com/nats-io/nats.go v1.39.0
 	github.com/roadrunner-server/api/v4 v4.18.1
 	github.com/roadrunner-server/config/v5 v5.1.2
 	github.com/roadrunner-server/endure/v2 v2.6.1
