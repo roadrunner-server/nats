@@ -7,7 +7,7 @@ toolchain go1.24.0
 require (
 	github.com/goccy/go-json v0.10.5
 	github.com/google/uuid v1.6.0
-	github.com/nats-io/nats.go v1.43.0
+	github.com/nats-io/nats.go v1.44.0
 	github.com/roadrunner-server/api/v4 v4.21.0
 	github.com/roadrunner-server/endure/v2 v2.6.2
 	github.com/roadrunner-server/errors v1.4.1
@@ -16,7 +16,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.37.0
 	go.opentelemetry.io/otel/trace v1.37.0
 	go.uber.org/zap v1.27.0
-	google.golang.org/genproto v0.0.0-20250728155136-f173205681a0
+	google.golang.org/genproto v0.0.0-20250804133106-a7a43d27e69b
 )
 
 require (
@@ -30,7 +30,7 @@ require (
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/otel/metric v1.37.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.40.0 // indirect
-	golang.org/x/sys v0.34.0 // indirect
-	google.golang.org/protobuf v1.36.6 // indirect
+	golang.org/x/crypto v0.41.0 // indirect
+	golang.org/x/sys v0.35.0 // indirect
+	google.golang.org/protobuf v1.36.7 // indirect
 )
