@@ -1,15 +1,15 @@
 module tests
 
-go 1.24
+go 1.25
 
-toolchain go1.24.0
+toolchain go1.25.0
 
 require (
 	github.com/Shopify/toxiproxy/v2 v2.12.0
 	github.com/goccy/go-json v0.10.5
 	github.com/google/uuid v1.6.0
 	github.com/nats-io/nats.go v1.44.0
-	github.com/roadrunner-server/api/v4 v4.21.0
+	github.com/roadrunner-server/api/v4 v4.22.1
 	github.com/roadrunner-server/config/v5 v5.1.8
 	github.com/roadrunner-server/endure/v2 v2.6.2
 	github.com/roadrunner-server/goridge/v3 v3.8.3
