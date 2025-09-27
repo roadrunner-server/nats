@@ -8,7 +8,7 @@ require (
 	github.com/Shopify/toxiproxy/v2 v2.12.0
 	github.com/goccy/go-json v0.10.5
 	github.com/google/uuid v1.6.0
-	github.com/nats-io/nats.go v1.45.0
+	github.com/nats-io/nats.go v1.46.0
 	github.com/roadrunner-server/api/v4 v4.22.1
 	github.com/roadrunner-server/config/v5 v5.1.9
 	github.com/roadrunner-server/endure/v2 v2.6.2
@@ -23,7 +23,7 @@ require (
 	github.com/roadrunner-server/server/v5 v5.2.10
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.0
-	google.golang.org/genproto v0.0.0-20250908214217-97024824d090
+	google.golang.org/genproto v0.0.0-20250922171735-9219d122eba9
 )
 
 replace github.com/roadrunner-server/nats/v5 => ../
@@ -107,8 +107,8 @@ require (
 	golang.org/x/sys v0.36.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
 	golang.org/x/time v0.13.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20250908214217-97024824d090 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250908214217-97024824d090 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20250922171735-9219d122eba9 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250922171735-9219d122eba9 // indirect
 	google.golang.org/grpc v1.75.1 // indirect
 	google.golang.org/protobuf v1.36.9 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
