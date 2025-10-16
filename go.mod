@@ -2,12 +2,12 @@ module github.com/roadrunner-server/nats/v5
 
 go 1.25
 
-toolchain go1.25.2
+toolchain go1.25.3
 
 require (
 	github.com/goccy/go-json v0.10.5
 	github.com/google/uuid v1.6.0
-	github.com/nats-io/nats.go v1.46.1
+	github.com/nats-io/nats.go v1.47.0
 	github.com/roadrunner-server/api/v4 v4.22.1
 	github.com/roadrunner-server/endure/v2 v2.6.2
 	github.com/roadrunner-server/errors v1.4.1
@@ -16,7 +16,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.38.0
 	go.opentelemetry.io/otel/trace v1.38.0
 	go.uber.org/zap v1.27.0
-	google.golang.org/genproto v0.0.0-20251007200510-49b9836ed3ff
+	google.golang.org/genproto v0.0.0-20251014184007-4626949a642f
 )
 
 require (
