@@ -19,6 +19,7 @@ func (c *Driver) listenerInit() error {
 		Name:          id,
 		MaxAckPending: c.prefetch,
 		AckPolicy:     jetstream.AckExplicitPolicy,
+		AckWait:       c.ackWait,
 	})
 	if err != nil {
 		return err

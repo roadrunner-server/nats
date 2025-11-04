@@ -49,9 +49,10 @@ type Driver struct {
 	consumer     *consumer
 	consumerLock sync.RWMutex
 	conn         *nats.Conn
-	stream       jetstream.Stream
-	jetstream    jetstream.JetStream
-	msgCh        chan jetstream.Msg
+
+	stream    jetstream.Stream
+	jetstream jetstream.JetStream
+	msgCh     chan jetstream.Msg
 
 	// config
 	priority           int64
@@ -62,6 +63,7 @@ type Driver struct {
 	deleteAfterAck     bool
 	deliverNew         bool
 	deleteStreamOnStop bool
+	ackWait            time.Duration
 }
 
 type consumer struct {
@@ -137,8 +139,9 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 		stopped: 0,
 		queue:   pq,
 
-		conn:      conn,
-		stream:    stream,
+		conn:   conn,
+		stream: stream,
+
 		jetstream: js,
 
 		priority:           conf.Priority,
@@ -148,6 +151,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 		deleteStreamOnStop: conf.DeleteStreamOnStop,
 		prefetch:           conf.Prefetch,
 		deliverNew:         conf.DeliverNew,
+		ackWait:            conf.AckWait,
 		rateLimit:          conf.RateLimit,
 		msgCh:              make(chan jetstream.Msg, conf.Prefetch),
 	}
@@ -218,8 +222,9 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.
 		stopCh:  make(chan struct{}),
 		stopped: 0,
 
-		conn:      conn,
-		stream:    stream,
+		conn:   conn,
+		stream: stream,
+
 		jetstream: js,
 
 		priority:           pipe.Priority(),
@@ -229,6 +234,7 @@ func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.
 		deleteAfterAck:     pipe.Bool(pipeDeleteAfterAck, false),
 		deliverNew:         pipe.Bool(pipeDeliverNew, false),
 		deleteStreamOnStop: pipe.Bool(pipeDeleteStreamOnStop, false),
+		ackWait:            time.Duration(pipe.Int(pipeAckWait, 30)) * time.Second,
 		rateLimit:          uint64(pipe.Int(pipeRateLimit, 1000)), //nolint:gosec
 		msgCh:              make(chan jetstream.Msg, pipe.Int(pipePrefetch, 100)),
 	}
