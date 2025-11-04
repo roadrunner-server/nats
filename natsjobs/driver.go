@@ -411,10 +411,6 @@ func (c *Driver) Stop(ctx context.Context) error {
 	_ = c.queue.Remove(pipe.Name())
 
 	if atomic.LoadUint32(&c.listeners) > 0 {
-		err := c.stream.Purge(ctx)
-		if err != nil {
-			c.log.Error("drain error", zap.Error(err))
-		}
 		c.stopCh <- struct{}{}
 	}
 
