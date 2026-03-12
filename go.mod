@@ -5,7 +5,7 @@ go 1.26
 toolchain go1.26.0
 
 require (
-	github.com/goccy/go-json v0.10.5
+	github.com/goccy/go-json v0.10.6
 	github.com/google/uuid v1.6.0
 	github.com/nats-io/nats.go v1.49.0
 	github.com/roadrunner-server/api/v4 v4.23.0
