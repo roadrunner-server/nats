@@ -2,6 +2,7 @@ package natsjobs
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -16,7 +17,6 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 )
 
 const (
@@ -36,7 +36,7 @@ type Configurer interface {
 
 type Driver struct {
 	// system
-	log       *zap.Logger
+	log       *slog.Logger
 	queue     jobs.Queue
 	tracer    *sdktrace.TracerProvider
 	prop      propagation.TextMapPropagator
@@ -72,7 +72,7 @@ type consumer struct {
 	context jetstream.ConsumeContext
 }
 
-func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logger, cfg Configurer, pipe jobs.Pipeline, pq jobs.Queue) (*Driver, error) {
+func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *slog.Logger, cfg Configurer, pipe jobs.Pipeline, pq jobs.Queue) (*Driver, error) {
 	const op = errors.Op("new_nats_consumer")
 
 	if !cfg.Has(configKey) {
@@ -161,7 +161,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *zap.Logg
 	return cs, nil
 }
 
-func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *zap.Logger, cfg Configurer, pq jobs.Queue) (*Driver, error) {
+func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *slog.Logger, cfg Configurer, pq jobs.Queue) (*Driver, error) {
 	const op = errors.Op("new_nats_pipeline_consumer")
 
 	// if no global section -- error
@@ -301,7 +301,7 @@ func (c *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 
 	c.listenerStart()
 
-	c.log.Debug("pipeline was started", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))
+	c.log.Debug("pipeline was started", "driver", pipe.Driver(), "pipeline", pipe.Name(), "start", start, "elapsed", time.Since(start).Milliseconds())
 	return nil
 }
 
@@ -331,7 +331,7 @@ func (c *Driver) Pause(ctx context.Context, p string) error {
 
 	c.stopCh <- struct{}{}
 
-	c.log.Debug("pipeline was paused", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))
+	c.log.Debug("pipeline was paused", "driver", pipe.Driver(), "pipeline", pipe.Name(), "start", start, "elapsed", time.Since(start).Milliseconds())
 
 	return nil
 }
@@ -362,7 +362,7 @@ func (c *Driver) Resume(ctx context.Context, p string) error {
 
 	atomic.AddUint32(&c.listeners, 1)
 
-	c.log.Debug("pipeline was resumed", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))
+	c.log.Debug("pipeline was resumed", "driver", pipe.Driver(), "pipeline", pipe.Name(), "start", start, "elapsed", time.Since(start).Milliseconds())
 
 	return nil
 }
@@ -427,7 +427,7 @@ func (c *Driver) Stop(ctx context.Context) error {
 	}
 
 	c.conn.Close()
-	c.log.Debug("pipeline was stopped", zap.String("driver", pipe.Driver()), zap.String("pipeline", pipe.Name()), zap.Time("start", start), zap.Int64("elapsed", time.Since(start).Milliseconds()))
+	c.log.Debug("pipeline was stopped", "driver", pipe.Driver(), "pipeline", pipe.Name(), "start", start, "elapsed", time.Since(start).Milliseconds())
 
 	return nil
 }
@@ -460,16 +460,16 @@ func (c *Driver) requeue(item *Item) error {
 	return nil
 }
 
-func reconnectHandler(log *zap.Logger) func(*nats.Conn) {
+func reconnectHandler(log *slog.Logger) func(*nats.Conn) {
 	return func(conn *nats.Conn) {
-		log.Warn("connection lost, reconnecting", zap.String("url", conn.ConnectedUrl()))
+		log.Warn("connection lost, reconnecting", "url", conn.ConnectedUrl())
 	}
 }
 
-func disconnectHandler(log *zap.Logger) func(*nats.Conn, error) {
+func disconnectHandler(log *slog.Logger) func(*nats.Conn, error) {
 	return func(_ *nats.Conn, err error) {
 		if err != nil {
-			log.Error("nats disconnected", zap.Error(err))
+			log.Error("nats disconnected", "error", err)
 			return
 		}
 

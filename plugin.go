@@ -1,6 +1,8 @@
 package nats
 
 import (
+	"log/slog"
+
 	_ "google.golang.org/genproto/protobuf/ptype" //nolint:revive,nolintlint
 
 	"github.com/roadrunner-server/api-plugins/v6/jobs"
@@ -8,7 +10,6 @@ import (
 	"github.com/roadrunner-server/errors"
 	"github.com/roadrunner-server/nats/v6/natsjobs"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"go.uber.org/zap"
 )
 
 const pluginName string = "nats"
@@ -21,7 +22,7 @@ type Configurer interface {
 }
 
 type Logger interface {
-	NamedLogger(name string) *zap.Logger
+	NamedLogger(name string) *slog.Logger
 }
 
 type Tracer interface {
@@ -29,7 +30,7 @@ type Tracer interface {
 }
 
 type Plugin struct {
-	log    *zap.Logger
+	log    *slog.Logger
 	cfg    Configurer
 	tracer *sdktrace.TracerProvider
 }

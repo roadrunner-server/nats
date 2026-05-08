@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go/jetstream"
 	"go.opentelemetry.io/otel/propagation"
-	"go.uber.org/zap"
 )
 
 // blocking
@@ -58,10 +57,10 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 				if err != nil {
 					errn := m.Nak()
 					if errn != nil {
-						c.log.Error("failed to send Nak state", zap.Error(errn), zap.Error(err))
+						c.log.Error("failed to send Nak state", "error", errn, "error", err)
 						continue
 					}
-					c.log.Info("can't get message metadata", zap.Error(err))
+					c.log.Info("can't get message metadata", "error", err)
 					continue
 				}
 
@@ -69,10 +68,10 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 				if err != nil {
 					errn := m.Nak()
 					if errn != nil {
-						c.log.Error("failed to send Nak state", zap.Error(errn), zap.Error(err))
+						c.log.Error("failed to send Nak state", "error", errn, "error", err)
 						continue
 					}
-					c.log.Error("failed to send InProgress state", zap.Error(err))
+					c.log.Error("failed to send InProgress state", "error", err)
 					continue
 				}
 
@@ -113,7 +112,7 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 					err = m.Ack()
 					if err != nil {
 						item = nil
-						c.log.Error("message acknowledge", zap.Error(err))
+						c.log.Error("message acknowledge", "error", err)
 						span.RecordError(err)
 						span.End()
 						continue
@@ -122,7 +121,7 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 					if item.Options.deleteAfterAck {
 						err = c.stream.DeleteMsg(context.Background(), meta.Sequence.Stream)
 						if err != nil {
-							c.log.Error("delete message", zap.Error(err))
+							c.log.Error("delete message", "error", err)
 							item = nil
 							span.RecordError(err)
 							span.End()

@@ -3,7 +3,6 @@ package natsjobs
 import (
 	"github.com/goccy/go-json"
 	"github.com/google/uuid"
-	"go.uber.org/zap"
 )
 
 const (
@@ -26,6 +25,6 @@ func (c *Driver) unpack(data []byte, headers map[string][]string, item *Item) {
 				Queue:    c.streamID,
 			},
 		}
-		c.log.Debug("raw payload", zap.String("assigned ID", item.Ident))
+		c.log.Debug("raw payload", "assigned ID", item.Ident)
 	}
 }
