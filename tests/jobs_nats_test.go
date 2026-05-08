@@ -31,7 +31,7 @@ import (
 	"github.com/roadrunner-server/informer/v5"
 	"github.com/roadrunner-server/jobs/v5"
 	"github.com/roadrunner-server/logger/v5"
-	natsPlugin "github.com/roadrunner-server/nats/v5"
+	natsPlugin "github.com/roadrunner-server/nats/v6"
 	"github.com/roadrunner-server/otel/v5"
 	"github.com/roadrunner-server/resetter/v5"
 	rpcPlugin "github.com/roadrunner-server/rpc/v5"

@@ -15,7 +15,7 @@ import (
 	"github.com/roadrunner-server/informer/v5"
 	"github.com/roadrunner-server/jobs/v5"
 	"github.com/roadrunner-server/logger/v5"
-	"github.com/roadrunner-server/nats/v5"
+	"github.com/roadrunner-server/nats/v6"
 	"github.com/roadrunner-server/resetter/v5"
 	"github.com/roadrunner-server/server/v5"
 
