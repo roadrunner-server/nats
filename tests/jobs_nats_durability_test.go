@@ -10,18 +10,18 @@ import (
 	"time"
 
 	toxiproxy "github.com/Shopify/toxiproxy/v2/client"
-	"github.com/roadrunner-server/config/v5"
+	"github.com/roadrunner-server/config/v6"
 	"github.com/roadrunner-server/endure/v2"
-	"github.com/roadrunner-server/informer/v5"
-	"github.com/roadrunner-server/jobs/v5"
-	"github.com/roadrunner-server/logger/v5"
+	"github.com/roadrunner-server/informer/v6"
+	"github.com/roadrunner-server/jobs/v6"
+	"github.com/roadrunner-server/logger/v6"
 	"github.com/roadrunner-server/nats/v6"
-	"github.com/roadrunner-server/resetter/v5"
-	"github.com/roadrunner-server/server/v5"
+	"github.com/roadrunner-server/resetter/v6"
+	"github.com/roadrunner-server/server/v6"
 
 	"tests/helpers"
 
-	rpcPlugin "github.com/roadrunner-server/rpc/v5"
+	rpcPlugin "github.com/roadrunner-server/rpc/v6"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
