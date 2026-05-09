@@ -14,7 +14,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	jobsProto "github.com/roadrunner-server/api/v4/build/jobs/v1"
 	jobState "github.com/roadrunner-server/api/v4/plugins/v1/jobs"
-	goridgeRpc "github.com/roadrunner-server/goridge/v3/pkg/rpc"
+	goridgeRpc "github.com/roadrunner-server/goridge/v4/pkg/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -57,7 +57,7 @@ func PushToPipe(pipeline string, autoAck bool, address string) func(t *testing.T
 		}()
 		client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
 
-		req := &jobsProto.PushRequest{Job: createDummyJob(pipeline, autoAck)}
+		req := &jobsProto.PushBatchRequest{Jobs: []*jobsProto.Job{createDummyJob(pipeline, autoAck)}}
 
 		er := &jobsProto.Empty{}
 		err = client.Call(push, req, er)

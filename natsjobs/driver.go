@@ -2,12 +2,12 @@ package natsjobs
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/goccy/go-json"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/roadrunner-server/api-plugins/v6/jobs"
