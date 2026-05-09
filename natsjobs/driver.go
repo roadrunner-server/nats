@@ -72,7 +72,7 @@ type consumer struct {
 	context jetstream.ConsumeContext
 }
 
-func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *slog.Logger, cfg Configurer, pipe jobs.Pipeline, pq jobs.Queue) (*Driver, error) {
+func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey string, log *slog.Logger, cfg Configurer, pipe jobs.Pipeline, pq jobs.Queue) (*Driver, error) {
 	const op = errors.Op("new_nats_consumer")
 
 	if !cfg.Has(configKey) {
@@ -161,7 +161,7 @@ func FromConfig(tracer *sdktrace.TracerProvider, configKey string, log *slog.Log
 	return cs, nil
 }
 
-func FromPipeline(tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *slog.Logger, cfg Configurer, pq jobs.Queue) (*Driver, error) {
+func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipe jobs.Pipeline, log *slog.Logger, cfg Configurer, pq jobs.Queue) (*Driver, error) {
 	const op = errors.Op("new_nats_pipeline_consumer")
 
 	// if no global section -- error
