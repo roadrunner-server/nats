@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
-	"net"
 	"net/http"
-	"net/rpc"
 	"os"
 	"os/signal"
 	"sort"
@@ -16,13 +14,16 @@ import (
 	"testing"
 	"time"
 
+	"tests/helpers"
+	mocklogger "tests/mock"
+
+	"connectrpc.com/connect"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	jobsProto "github.com/roadrunner-server/api/v4/build/jobs/v1"
-	jobState "github.com/roadrunner-server/api/v4/plugins/v1/jobs"
+	jobsProto "github.com/roadrunner-server/api-go/v6/jobs/v2"
+	jobState "github.com/roadrunner-server/api-plugins/v6/jobs"
 	"github.com/roadrunner-server/config/v6"
 	"github.com/roadrunner-server/endure/v2"
-	goridgeRpc "github.com/roadrunner-server/goridge/v4/pkg/rpc"
 	"github.com/roadrunner-server/informer/v6"
 	"github.com/roadrunner-server/jobs/v6"
 	"github.com/roadrunner-server/logger/v6"
@@ -34,8 +35,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	_ "google.golang.org/genproto/protobuf/ptype" //nolint:revive,nolintlint
-	"tests/helpers"
-	mocklogger "tests/mock"
 )
 
 func TestNATSHeaders(t *testing.T) {
@@ -1234,11 +1233,8 @@ func TestNATSMessageSubjectAsHeader(t *testing.T) {
 
 func declareNATSPipe(address, subj, stream string) func(t *testing.T) {
 	return func(t *testing.T) {
-		conn, err := net.Dial("tcp", address)
-		require.NoError(t, err)
-		client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
-
-		pipe := &jobsProto.DeclareRequest{Pipeline: map[string]string{
+		client := helpers.NewJobsClient(t, address)
+		req := &jobsProto.DeclareRequest{Pipeline: map[string]string{
 			"driver":      "nats",
 			"name":        "test-3",
 			"subject":     subj,
@@ -1247,9 +1243,7 @@ func declareNATSPipe(address, subj, stream string) func(t *testing.T) {
 			"prefetch":    "100",
 			"priority":    "3",
 		}}
-
-		er := &jobsProto.Empty{}
-		err = client.Call("jobs.Declare", pipe, er)
+		_, err := client.Declare(t.Context(), connect.NewRequest(req))
 		require.NoError(t, err)
 	}
 }
