@@ -40,7 +40,7 @@ type Driver struct {
 	queue     jobs.Queue
 	tracer    *sdktrace.TracerProvider
 	prop      propagation.TextMapPropagator
-	listeners uint32
+	listeners atomic.Uint32
 	pipeline  atomic.Pointer[jobs.Pipeline]
 	stopCh    chan struct{}
 	stopped   uint64
@@ -286,14 +286,14 @@ func (c *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 		return errors.E(op, errors.Errorf("no such pipeline registered: %s", pipe.Name()))
 	}
 
-	l := atomic.LoadUint32(&c.listeners)
+	l := c.listeners.Load()
 	// listener already active
 	if l == 1 {
 		c.log.Warn("nats listener is already in the active state")
 		return nil
 	}
 
-	atomic.AddUint32(&c.listeners, 1)
+	c.listeners.Add(1)
 	err := c.listenerInit()
 	if err != nil {
 		return errors.E(op, err)
@@ -316,14 +316,14 @@ func (c *Driver) Pause(ctx context.Context, p string) error {
 		return errors.Errorf("no such pipeline: %s", pipe.Name())
 	}
 
-	l := atomic.LoadUint32(&c.listeners)
+	l := c.listeners.Load()
 	// no active listeners
 	if l == 0 {
 		return errors.Str("no active listeners, nothing to pause")
 	}
 
 	// remove listener
-	atomic.AddUint32(&c.listeners, ^uint32(0))
+	c.listeners.Add(^uint32(0))
 
 	c.consumerLock.RLock()
 	c.consumer.context.Stop()
@@ -347,7 +347,7 @@ func (c *Driver) Resume(ctx context.Context, p string) error {
 		return errors.Errorf("no such pipeline: %s", pipe.Name())
 	}
 
-	l := atomic.LoadUint32(&c.listeners)
+	l := c.listeners.Load()
 	// listener already active
 	if l == 1 {
 		return errors.Str("nats listener is already in the active state")
@@ -360,7 +360,7 @@ func (c *Driver) Resume(ctx context.Context, p string) error {
 
 	c.listenerStart()
 
-	atomic.AddUint32(&c.listeners, 1)
+	c.listeners.Add(1)
 
 	c.log.Debug("pipeline was resumed", "driver", pipe.Driver(), "pipeline", pipe.Name(), "start", start, "elapsed", time.Since(start).Milliseconds())
 
@@ -378,7 +378,7 @@ func (c *Driver) State(ctx context.Context) (*jobs.State, error) {
 		Priority: uint64(pipe.Priority()), //nolint:gosec
 		Driver:   pipe.Driver(),
 		Queue:    c.subject,
-		Ready:    ready(atomic.LoadUint32(&c.listeners)),
+		Ready:    ready(c.listeners.Load()),
 	}
 
 	c.consumerLock.RLock()
@@ -410,7 +410,7 @@ func (c *Driver) Stop(ctx context.Context) error {
 	// remove all items associated with the current pipeline
 	_ = c.queue.Remove(pipe.Name())
 
-	if atomic.LoadUint32(&c.listeners) > 0 {
+	if c.listeners.Load() > 0 {
 		c.stopCh <- struct{}{}
 	}
 
