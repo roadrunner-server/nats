@@ -1,66 +1,57 @@
 package helpers
 
 import (
-	"bytes"
 	"context"
+	"crypto/tls"
 	"net"
 	"net/http"
-	"net/rpc"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	jobsProto "github.com/roadrunner-server/api/v4/build/jobs/v1"
-	jobState "github.com/roadrunner-server/api/v4/plugins/v1/jobs"
-	goridgeRpc "github.com/roadrunner-server/goridge/v4/pkg/rpc"
+	jobsProto "github.com/roadrunner-server/api-go/v6/jobs/v2"
+	"github.com/roadrunner-server/api-go/v6/jobs/v2/jobsV2connect"
+	jobState "github.com/roadrunner-server/api-plugins/v6/jobs"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/net/http2"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-const (
-	push    string = "jobs.Push"
-	pause   string = "jobs.Pause"
-	destroy string = "jobs.Destroy"
-	resume  string = "jobs.Resume"
-	stat    string = "jobs.Stat"
-)
+func newHTTPClient(t *testing.T) *http.Client {
+	t.Helper()
+	httpc := &http.Client{Transport: &http2.Transport{
+		AllowHTTP: true,
+		DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
+			return new(net.Dialer).DialContext(ctx, network, addr)
+		},
+	}}
+	t.Cleanup(httpc.CloseIdleConnections)
+	return httpc
+}
+
+func NewJobsClient(t *testing.T, address string) jobsV2connect.JobsServiceClient {
+	t.Helper()
+	return jobsV2connect.NewJobsServiceClient(newHTTPClient(t), "http://"+address)
+}
 
 func ResumePipes(address string, pipes ...string) func(t *testing.T) {
 	return func(t *testing.T) {
-		conn, err := net.Dial("tcp", address)
-		require.NoError(t, err)
-		defer func() {
-			_ = conn.Close()
-		}()
-		client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
-
-		pipe := &jobsProto.Pipelines{Pipelines: make([]string, len(pipes))}
-
-		for i := 0; i < len(pipes); i++ {
-			pipe.GetPipelines()[i] = pipes[i]
-		}
-
-		er := &jobsProto.Empty{}
-		err = client.Call(resume, pipe, er)
+		client := NewJobsClient(t, address)
+		_, err := client.Resume(t.Context(), connect.NewRequest(&jobsProto.Pipelines{Pipelines: slices.Clone(pipes)}))
 		require.NoError(t, err)
 	}
 }
 
 func PushToPipe(pipeline string, autoAck bool, address string) func(t *testing.T) {
 	return func(t *testing.T) {
-		conn, err := net.Dial("tcp", address)
-		require.NoError(t, err)
-		defer func() {
-			_ = conn.Close()
-		}()
-		client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
-
-		req := &jobsProto.PushBatchRequest{Jobs: []*jobsProto.Job{createDummyJob(pipeline, autoAck)}}
-
-		er := &jobsProto.Empty{}
-		err = client.Call(push, req, er)
+		client := NewJobsClient(t, address)
+		_, err := client.Push(t.Context(), connect.NewRequest(&jobsProto.PushRequest{Job: createDummyJob(pipeline, autoAck)}))
 		require.NoError(t, err)
 	}
 }
@@ -70,7 +61,7 @@ func createDummyJob(pipeline string, autoAck bool) *jobsProto.Job {
 		Job:     "some/php/namespace",
 		Id:      uuid.NewString(),
 		Payload: []byte(`{"hello":"world"}`),
-		Headers: map[string]*jobsProto.HeaderValue{"test": {Value: []string{"test2"}}},
+		Headers: map[string]*jobsProto.JobHeaderValue{"test": {Values: []string{"test2"}}},
 		Options: &jobsProto.Options{
 			AutoAck:  autoAck,
 			Priority: 1,
@@ -82,113 +73,86 @@ func createDummyJob(pipeline string, autoAck bool) *jobsProto.Job {
 
 func PausePipelines(address string, pipes ...string) func(t *testing.T) {
 	return func(t *testing.T) {
-		conn, err := net.Dial("tcp", address)
-		require.NoError(t, err)
-		defer func() {
-			_ = conn.Close()
-		}()
-		client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
-
-		pipe := &jobsProto.Pipelines{Pipelines: make([]string, len(pipes))}
-
-		for i := 0; i < len(pipes); i++ {
-			pipe.GetPipelines()[i] = pipes[i]
-		}
-
-		er := &jobsProto.Empty{}
-		err = client.Call(pause, pipe, er)
+		client := NewJobsClient(t, address)
+		_, err := client.Pause(t.Context(), connect.NewRequest(&jobsProto.Pipelines{Pipelines: slices.Clone(pipes)}))
 		assert.NoError(t, err)
 	}
 }
 
 func DestroyPipelines(address string, pipes ...string) func(t *testing.T) {
 	return func(t *testing.T) {
-		conn, err := net.Dial("tcp", address)
-		require.NoError(t, err)
-		defer func() {
-			_ = conn.Close()
-		}()
-		client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
+		client := NewJobsClient(t, address)
+		req := &jobsProto.Pipelines{Pipelines: slices.Clone(pipes)}
 
-		pipe := &jobsProto.Pipelines{Pipelines: make([]string, len(pipes))}
-
-		for i := 0; i < len(pipes); i++ {
-			pipe.GetPipelines()[i] = pipes[i]
-		}
-
-		for i := 0; i < 10; i++ {
-			er := &jobsProto.Empty{}
-			err = client.Call(destroy, pipe, er)
-			if err != nil {
-				time.Sleep(time.Second)
-				continue
+		// Retry the destroy 10× with 1s gaps; if all attempts fail, return
+		// without asserting. Some negative tests intentionally destroy
+		// non-existent pipelines and rely on this silent-after-retry pattern.
+		for range 10 {
+			_, err := client.Destroy(t.Context(), connect.NewRequest(req))
+			if err == nil {
+				return
 			}
-			assert.NoError(t, err)
-			break
+			time.Sleep(time.Second)
 		}
 	}
 }
 
 func Stats(address string, state *jobState.State) func(t *testing.T) {
 	return func(t *testing.T) {
-		conn, err := net.Dial("tcp", address)
+		client := NewJobsClient(t, address)
+
+		resp, err := client.GetStats(t.Context(), connect.NewRequest(&emptypb.Empty{}))
 		require.NoError(t, err)
-		defer func() {
-			_ = conn.Close()
-		}()
-		client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
+		require.NotNil(t, resp)
+		require.NotEmpty(t, resp.Msg.GetStats())
 
-		st := &jobsProto.Stats{}
-		er := &jobsProto.Empty{}
-
-		err = client.Call(stat, er, st)
-		require.NoError(t, err)
-		require.NotNil(t, st)
-
-		state.Queue = st.Stats[0].Queue
-		state.Pipeline = st.Stats[0].Pipeline
-		state.Driver = st.Stats[0].Driver
-		state.Active = st.Stats[0].Active
-		state.Delayed = st.Stats[0].Delayed
-		state.Reserved = st.Stats[0].Reserved
-		state.Ready = st.Stats[0].Ready
-		state.Priority = st.Stats[0].Priority
+		st := resp.Msg.GetStats()[0]
+		state.Queue = st.GetQueue()
+		state.Pipeline = st.GetPipeline()
+		state.Driver = st.GetDriver()
+		state.Active = st.GetActive()
+		state.Delayed = st.GetDelayed()
+		state.Reserved = st.GetReserved()
+		state.Ready = st.GetReady()
+		state.Priority = st.GetPriority()
 	}
+}
+
+func setProxy(name string, enabled bool, t *testing.T) {
+	t.Helper()
+	body := strings.NewReader(`{"enabled":` + boolStr(enabled) + `}`)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "http://127.0.0.1:8474/proxies/"+name, body)
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	require.Equal(t, 200, resp.StatusCode)
+	if resp.Body != nil {
+		_ = resp.Body.Close()
+	}
+}
+
+func boolStr(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
 }
 
 func EnableProxy(name string, t *testing.T) {
-	buf := new(bytes.Buffer)
-	buf.WriteString(`{"enabled":true}`)
-
-	resp, err := http.Post("http://127.0.0.1:8474/proxies/"+name, "application/json", buf) //nolint:noctx
-	require.NoError(t, err)
-	require.Equal(t, 200, resp.StatusCode)
-	if resp.Body != nil {
-		_ = resp.Body.Close()
-	}
+	setProxy(name, true, t)
 }
 
 func DisableProxy(name string, t *testing.T) {
-	buf := new(bytes.Buffer)
-	buf.WriteString(`{"enabled":false}`)
-
-	resp, err := http.Post("http://127.0.0.1:8474/proxies/"+name, "application/json", buf) //nolint:noctx
-	require.NoError(t, err)
-	require.Equal(t, 200, resp.StatusCode)
-	if resp.Body != nil {
-		_ = resp.Body.Close()
-	}
+	setProxy(name, false, t)
 }
 
 func DeleteProxy(name string, t *testing.T) {
-	client := &http.Client{}
-
-	req, err := http.NewRequest(http.MethodDelete, "http://127.0.0.1:8474/proxies/"+name, nil) //nolint:noctx
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodDelete, "http://127.0.0.1:8474/proxies/"+name, nil)
 	require.NoError(t, err)
 
-	resp, err := client.Do(req)
-	require.NoError(t, err)
-
+	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	require.Equal(t, 204, resp.StatusCode)
 	if resp.Body != nil {
