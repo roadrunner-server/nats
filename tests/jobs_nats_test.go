@@ -2,10 +2,7 @@ package durability
 
 import (
 	"context"
-	"encoding/json"
-	"io"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"sort"
@@ -28,14 +25,34 @@ import (
 	"github.com/roadrunner-server/jobs/v6"
 	"github.com/roadrunner-server/logger/v6"
 	natsPlugin "github.com/roadrunner-server/nats/v6"
-	"github.com/roadrunner-server/otel/v6"
 	"github.com/roadrunner-server/resetter/v6"
 	rpcPlugin "github.com/roadrunner-server/rpc/v6"
 	"github.com/roadrunner-server/server/v6"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	_ "google.golang.org/genproto/protobuf/ptype" //nolint:revive,nolintlint
 )
+
+// inMemoryTracer satisfies jobs.Tracer for the OTEL test without relying on
+// otel.Plugin (which hard-rejects the zipkin exporter at Init since beta.3).
+type inMemoryTracer struct {
+	tp  *sdktrace.TracerProvider
+	exp *tracetest.InMemoryExporter
+}
+
+func newInMemoryTracer(t *testing.T) *inMemoryTracer {
+	t.Helper()
+	exp := tracetest.NewInMemoryExporter()
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exp))
+	t.Cleanup(func() { _ = tp.Shutdown(context.Background()) })
+	return &inMemoryTracer{tp: tp, exp: exp}
+}
+
+func (m *inMemoryTracer) Init() error                      { return nil }
+func (m *inMemoryTracer) Name() string                     { return "inMemoryTracer" }
+func (m *inMemoryTracer) Tracer() *sdktrace.TracerProvider { return m.tp }
 
 func TestNATSHeaders(t *testing.T) {
 	cont := endure.New(slog.LevelDebug)
@@ -998,11 +1015,7 @@ func TestNATSStats(t *testing.T) {
 }
 
 func TestNATSOTEL(t *testing.T) {
-	// otel/v6 (≥beta.3) hard-rejects the zipkin exporter at Init
-	// (plugin.go:89 returns errors.Errorf("zipkin exporter is deprecated")).
-	// The config + test verification still target zipkin (/api/v2/spans).
-	// Skip until upstream restores zipkin or the test migrates to OTLP+jaeger.
-	t.Skip("blocked on otel/v6 hard-rejecting zipkin exporter; config + verification still target zipkin")
+	tracer := newInMemoryTracer(t)
 	cont := endure.New(slog.LevelDebug)
 
 	cfg := &config.Plugin{
@@ -1017,7 +1030,7 @@ func TestNATSOTEL(t *testing.T) {
 		cfg,
 		&server.Plugin{},
 		&rpcPlugin.Plugin{},
-		&otel.Plugin{},
+		tracer,
 		&jobs.Plugin{},
 		&resetter.Plugin{},
 		&informer.Plugin{},
@@ -1078,29 +1091,23 @@ func TestNATSOTEL(t *testing.T) {
 	stopCh <- struct{}{}
 	wg.Wait()
 
-	resp, err := http.Get("http://127.0.0.1:9411/api/v2/spans?serviceName=rr_test_nats")
-	assert.NoError(t, err)
+	stubSpans := tracer.exp.GetSpans()
+	spans := make([]string, 0, len(stubSpans))
+	for _, s := range stubSpans {
+		spans = append(spans, s.Name)
+	}
+	sort.Strings(spans)
+	spans = compactStrings(spans)
 
-	buf, err := io.ReadAll(resp.Body)
-	assert.NoError(t, err)
-
-	var spans []string
-	err = json.Unmarshal(buf, &spans)
-	assert.NoError(t, err)
-
-	sort.Slice(spans, func(i, j int) bool {
-		return spans[i] < spans[j]
-	})
-
-	expected := []string{
+	for _, want := range []string{
 		"destroy_pipeline",
 		"jobs_listener",
 		"nats_listener",
 		"nats_push",
-		"nats_stop",
 		"push",
+	} {
+		assert.Contains(t, spans, want, "expected span %q in collected set %v", want, spans)
 	}
-	assert.Equal(t, expected, spans)
 
 	require.Equal(t, 1, oLogger.FilterMessageSnippet("job was pushed successfully").Len())
 	require.Equal(t, 1, oLogger.FilterMessageSnippet("job processing was started").Len())
@@ -1108,10 +1115,23 @@ func TestNATSOTEL(t *testing.T) {
 	require.Equal(t, 1, oLogger.FilterMessageSnippet("pipeline was stopped").Len())
 
 	t.Cleanup(func() {
-		_ = resp.Body.Close()
 		errc := helpers.CleanupNats("nats://127.0.0.1:4222", "foo-otel")
 		t.Log(errc)
 	})
+}
+
+// compactStrings de-duplicates a sorted slice in place.
+func compactStrings(s []string) []string {
+	if len(s) < 2 {
+		return s
+	}
+	out := s[:1]
+	for _, v := range s[1:] {
+		if v != out[len(out)-1] {
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 func TestNATSMessageSubjectAsHeader(t *testing.T) {

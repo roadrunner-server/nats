@@ -11,15 +11,6 @@ server:
 nats:
   addr: "nats://127.0.0.1:4222"
 
-otel:
-  insecure: true
-  compress: false
-  client: http
-  exporter: zipkin
-  service_name: "rr_test_nats"
-  service_version: "1.0.0"
-  endpoint: "http://127.0.0.1:9411/api/v2/spans"
-
 logs:
   level: debug
   encoding: console
