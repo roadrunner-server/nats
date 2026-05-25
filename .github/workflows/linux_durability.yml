@@ -76,7 +76,7 @@ jobs:
                  exit 1
           fi
 
-          go test -timeout 20m -v -race -cover -tags=debug -failfast -coverpkg=$(cat pkgs.txt) -coverprofile=./coverage-ci/nats_dur.out -covermode=atomic jobs_nats_durability_test.go
+          go test -timeout 20m -v -race -cover -tags=debug -failfast -coverpkg=github.com/roadrunner-server/nats/v6 -coverprofile=./coverage-ci/nats_dur.out -covermode=atomic jobs_nats_durability_test.go
           docker compose -f env/docker-compose-nats.yaml down
 
       - name: Archive code coverage results
@@ -93,12 +93,25 @@ jobs:
 
     timeout-minutes: 60
     steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
       - name: Download code coverage results
         uses: actions/download-artifact@v8
+        with:
+          name: coverage
+          path: coverage
       - run: |
           echo 'mode: atomic' > summary.txt
-          tail -q -n +2 *.out >> summary.txt
-          sed -i '2,${/roadrunner/!d}' summary.txt
+          tail -q -n +2 coverage/*.out >> summary.txt
+          awk '
+            NR == 1 { print; next }
+            /^github\.com\/roadrunner-server\/nats\/v6\// {
+              sub(/^github\.com\/roadrunner-server\/nats\/v6\//, "", $0)
+              print
+            }
+          ' summary.txt > summary.filtered.txt
+          mv summary.filtered.txt summary.txt
 
       - name: upload to codecov
         uses: codecov/codecov-action@v6 # Docs: <https://github.com/codecov/codecov-action>
