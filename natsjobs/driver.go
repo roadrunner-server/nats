@@ -137,7 +137,7 @@ func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey st
 		tracer: tracer,
 		prop:   prop,
 		log:    log,
-		stopCh: make(chan struct{}),
+		stopCh: make(chan struct{}, 1),
 		queue:  pq,
 
 		conn:   conn,
@@ -222,7 +222,7 @@ func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipe jobs.
 		prop:   prop,
 		log:    log,
 		queue:  pq,
-		stopCh: make(chan struct{}),
+		stopCh: make(chan struct{}, 1),
 
 		conn:   conn,
 		stream: stream,
@@ -449,6 +449,7 @@ func (c *Driver) requeue(item *Item) error {
 
 	msg := nats.NewMsg(c.subject)
 	msg.Data = data
+	msg.Header = item.headers
 	_, err = c.jetstream.PublishMsg(context.Background(), msg)
 	if err != nil {
 		return errors.E(op, err)
