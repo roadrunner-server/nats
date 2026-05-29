@@ -111,7 +111,6 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 					c.log.Debug("auto_ack option enabled")
 					err = m.Ack()
 					if err != nil {
-						item = nil
 						c.log.Error("message acknowledge", "error", err)
 						span.RecordError(err)
 						span.End()
@@ -122,7 +121,6 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 						err = c.stream.DeleteMsg(context.Background(), meta.Sequence.Stream)
 						if err != nil {
 							c.log.Error("delete message", "error", err)
-							item = nil
 							span.RecordError(err)
 							span.End()
 							continue

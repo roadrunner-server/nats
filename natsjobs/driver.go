@@ -43,7 +43,7 @@ type Driver struct {
 	listeners atomic.Uint32
 	pipeline  atomic.Pointer[jobs.Pipeline]
 	stopCh    chan struct{}
-	stopped   uint64
+	stopped   atomic.Uint64
 
 	// nats
 	consumer     *consumer
@@ -120,6 +120,7 @@ func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey st
 
 	js, err := jetstream.New(conn)
 	if err != nil {
+		conn.Close()
 		return nil, errors.E(op, err)
 	}
 
@@ -128,16 +129,16 @@ func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey st
 		Subjects: []string{conf.Subject},
 	})
 	if err != nil {
-		return nil, err
+		conn.Close()
+		return nil, errors.E(op, err)
 	}
 
 	cs := &Driver{
-		tracer:  tracer,
-		prop:    prop,
-		log:     log,
-		stopCh:  make(chan struct{}),
-		stopped: 0,
-		queue:   pq,
+		tracer: tracer,
+		prop:   prop,
+		log:    log,
+		stopCh: make(chan struct{}),
+		queue:  pq,
 
 		conn:   conn,
 		stream: stream,
@@ -200,6 +201,7 @@ func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipe jobs.
 
 	js, err := jetstream.New(conn)
 	if err != nil {
+		conn.Close()
 		return nil, errors.E(op, err)
 	}
 
@@ -211,16 +213,16 @@ func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipe jobs.
 		Subjects: []string{defSubject},
 	})
 	if err != nil {
-		return nil, err
+		conn.Close()
+		return nil, errors.E(op, err)
 	}
 
 	cs := &Driver{
-		tracer:  tracer,
-		prop:    prop,
-		log:     log,
-		queue:   pq,
-		stopCh:  make(chan struct{}),
-		stopped: 0,
+		tracer: tracer,
+		prop:   prop,
+		log:    log,
+		queue:  pq,
+		stopCh: make(chan struct{}),
 
 		conn:   conn,
 		stream: stream,
@@ -274,7 +276,7 @@ func (c *Driver) Push(ctx context.Context, job jobs.Message) error {
 }
 
 func (c *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
-	start := time.Now().UTC()
+	start := time.Now()
 
 	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "nats_run")
 	defer span.End()
@@ -306,7 +308,7 @@ func (c *Driver) Run(ctx context.Context, p jobs.Pipeline) error {
 }
 
 func (c *Driver) Pause(ctx context.Context, p string) error {
-	start := time.Now().UTC()
+	start := time.Now()
 
 	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "nats_pause")
 	defer span.End()
@@ -337,7 +339,7 @@ func (c *Driver) Pause(ctx context.Context, p string) error {
 }
 
 func (c *Driver) Resume(ctx context.Context, p string) error {
-	start := time.Now().UTC()
+	start := time.Now()
 
 	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "nats_resume")
 	defer span.End()
@@ -378,7 +380,7 @@ func (c *Driver) State(ctx context.Context) (*jobs.State, error) {
 		Priority: uint64(pipe.Priority()), //nolint:gosec
 		Driver:   pipe.Driver(),
 		Queue:    c.subject,
-		Ready:    ready(c.listeners.Load()),
+		Ready:    c.listeners.Load() > 0,
 	}
 
 	c.consumerLock.RLock()
@@ -400,12 +402,12 @@ func (c *Driver) State(ctx context.Context) (*jobs.State, error) {
 }
 
 func (c *Driver) Stop(ctx context.Context) error {
-	start := time.Now().UTC()
+	start := time.Now()
 
 	_, span := trace.SpanFromContext(ctx).TracerProvider().Tracer(tracerName).Start(ctx, "nats_stop")
 	defer span.End()
 
-	atomic.StoreUint64(&c.stopped, 1)
+	c.stopped.Store(1)
 	pipe := *c.pipeline.Load()
 	// remove all items associated with the current pipeline
 	_ = c.queue.Remove(pipe.Name())
@@ -445,10 +447,9 @@ func (c *Driver) requeue(item *Item) error {
 		return errors.E(op, err)
 	}
 
-	_, err = c.jetstream.PublishMsg(context.Background(), &nats.Msg{
-		Subject: c.subject,
-		Data:    data,
-	})
+	msg := nats.NewMsg(c.subject)
+	msg.Data = data
+	_, err = c.jetstream.PublishMsg(context.Background(), msg)
 	if err != nil {
 		return errors.E(op, err)
 	}
@@ -456,7 +457,6 @@ func (c *Driver) requeue(item *Item) error {
 	// delete the old message
 	_ = c.stream.DeleteMsg(context.Background(), item.Options.seq)
 
-	item = nil
 	return nil
 }
 
@@ -475,10 +475,6 @@ func disconnectHandler(log *slog.Logger) func(*nats.Conn, error) {
 
 		log.Info("nats disconnected")
 	}
-}
-
-func ready(r uint32) bool {
-	return r > 0
 }
 
 func fromJob(job jobs.Message) *Item {

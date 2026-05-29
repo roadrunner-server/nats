@@ -43,7 +43,7 @@ type Options struct {
 
 	// private
 	deleteAfterAck bool
-	stopped        *uint64
+	stopped        *atomic.Uint64
 	requeueFn      func(*Item) error
 	ack            func() error
 	nak            func() error
@@ -52,11 +52,6 @@ type Options struct {
 	stream         string
 	seq            uint64
 	sub            jetstream.Stream
-}
-
-// DelayDuration returns delay duration in the form of time.Duration.
-func (o *Options) DelayDuration() time.Duration {
-	return time.Second * time.Duration(o.Delay)
 }
 
 func (i *Item) ID() string {
@@ -108,7 +103,7 @@ func (i *Item) Context() ([]byte, error) {
 }
 
 func (i *Item) Ack() error {
-	if atomic.LoadUint64(i.Options.stopped) == 1 {
+	if i.Options.stopped.Load() == 1 {
 		return errors.Str("failed to acknowledge the JOB, the pipeline is probably stopped")
 	}
 	// the message already acknowledged
@@ -132,7 +127,7 @@ func (i *Item) Ack() error {
 }
 
 func (i *Item) Nack() error {
-	if atomic.LoadUint64(i.Options.stopped) == 1 {
+	if i.Options.stopped.Load() == 1 {
 		return errors.Str("failed to acknowledge the JOB, the pipeline is probably stopped")
 	}
 	if i.Options.AutoAck {
@@ -142,7 +137,7 @@ func (i *Item) Nack() error {
 }
 
 func (i *Item) NackWithOptions(requeue bool, delay int) error {
-	if atomic.LoadUint64(i.Options.stopped) == 1 {
+	if i.Options.stopped.Load() == 1 {
 		return errors.Str("failed to NACK the JOB, the pipeline is probably stopped")
 	}
 
@@ -156,7 +151,7 @@ func (i *Item) NackWithOptions(requeue bool, delay int) error {
 }
 
 func (i *Item) Requeue(headers map[string][]string, _ int) error {
-	if atomic.LoadUint64(i.Options.stopped) == 1 {
+	if i.Options.stopped.Load() == 1 {
 		return errors.Str("failed to acknowledge the JOB, the pipeline is probably stopped")
 	}
 
