@@ -14,7 +14,6 @@ import (
 	"tests/helpers"
 	mocklogger "tests/mock"
 
-	"connectrpc.com/connect"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	jobsProto "github.com/roadrunner-server/api-go/v6/jobs/v2"
@@ -1235,7 +1234,7 @@ func declareNATSPipe(address, subj, stream string) func(t *testing.T) {
 			"prefetch":    "100",
 			"priority":    "3",
 		}}
-		_, err := client.Declare(t.Context(), connect.NewRequest(req))
+		err := client.Call("jobs.Declare", req, &jobsProto.JobsHandlerResponse{})
 		require.NoError(t, err)
 	}
 }
