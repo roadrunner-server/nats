@@ -2,48 +2,39 @@ package helpers
 
 import (
 	"context"
-	"crypto/tls"
 	"net"
 	"net/http"
+	"net/rpc"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	jobsProto "github.com/roadrunner-server/api-go/v6/jobs/v2"
-	"github.com/roadrunner-server/api-go/v6/jobs/v2/jobsV2connect"
 	jobState "github.com/roadrunner-server/api-plugins/v6/jobs"
+	goridgeRpc "github.com/roadrunner-server/goridge/v4/pkg/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/http2"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-func newHTTPClient(t *testing.T) *http.Client {
+func NewJobsClient(t *testing.T, address string) *rpc.Client {
 	t.Helper()
-	httpc := &http.Client{Transport: &http2.Transport{
-		AllowHTTP: true,
-		DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
-			return new(net.Dialer).DialContext(ctx, network, addr)
-		},
-	}}
-	t.Cleanup(httpc.CloseIdleConnections)
-	return httpc
-}
-
-func NewJobsClient(t *testing.T, address string) jobsV2connect.JobsServiceClient {
-	t.Helper()
-	return jobsV2connect.NewJobsServiceClient(newHTTPClient(t), "http://"+address)
+	conn, err := (&net.Dialer{}).DialContext(t.Context(), "tcp", address)
+	require.NoError(t, err)
+	client := rpc.NewClientWithCodec(goridgeRpc.NewClientCodec(conn))
+	t.Cleanup(func() { _ = client.Close() })
+	return client
 }
 
 func ResumePipes(address string, pipes ...string) func(t *testing.T) {
 	return func(t *testing.T) {
 		client := NewJobsClient(t, address)
-		_, err := client.Resume(t.Context(), connect.NewRequest(&jobsProto.Pipelines{Pipelines: slices.Clone(pipes)}))
+		er := &jobsProto.JobsHandlerResponse{}
+		err := client.Call("jobs.Resume", &jobsProto.Pipelines{Pipelines: slices.Clone(pipes)}, er)
 		require.NoError(t, err)
 	}
 }
@@ -51,7 +42,8 @@ func ResumePipes(address string, pipes ...string) func(t *testing.T) {
 func PushToPipe(pipeline string, autoAck bool, address string) func(t *testing.T) {
 	return func(t *testing.T) {
 		client := NewJobsClient(t, address)
-		_, err := client.Push(t.Context(), connect.NewRequest(&jobsProto.PushRequest{Job: createDummyJob(pipeline, autoAck)}))
+		er := &jobsProto.JobsHandlerResponse{}
+		err := client.Call("jobs.Push", &jobsProto.PushRequest{Job: createDummyJob(pipeline, autoAck)}, er)
 		require.NoError(t, err)
 	}
 }
@@ -74,7 +66,8 @@ func createDummyJob(pipeline string, autoAck bool) *jobsProto.Job {
 func PausePipelines(address string, pipes ...string) func(t *testing.T) {
 	return func(t *testing.T) {
 		client := NewJobsClient(t, address)
-		_, err := client.Pause(t.Context(), connect.NewRequest(&jobsProto.Pipelines{Pipelines: slices.Clone(pipes)}))
+		er := &jobsProto.JobsHandlerResponse{}
+		err := client.Call("jobs.Pause", &jobsProto.Pipelines{Pipelines: slices.Clone(pipes)}, er)
 		assert.NoError(t, err)
 	}
 }
@@ -88,7 +81,8 @@ func DestroyPipelines(address string, pipes ...string) func(t *testing.T) {
 		// without asserting. Some negative tests intentionally destroy
 		// non-existent pipelines and rely on this silent-after-retry pattern.
 		for range 10 {
-			_, err := client.Destroy(t.Context(), connect.NewRequest(req))
+			out := &jobsProto.Pipelines{}
+			err := client.Call("jobs.Destroy", req, out)
 			if err == nil {
 				return
 			}
@@ -101,12 +95,13 @@ func Stats(address string, state *jobState.State) func(t *testing.T) {
 	return func(t *testing.T) {
 		client := NewJobsClient(t, address)
 
-		resp, err := client.GetStats(t.Context(), connect.NewRequest(&emptypb.Empty{}))
+		resp := &jobsProto.Stats{}
+		err := client.Call("jobs.GetStats", &emptypb.Empty{}, resp)
 		require.NoError(t, err)
 		require.NotNil(t, resp)
-		require.NotEmpty(t, resp.Msg.GetStats())
+		require.NotEmpty(t, resp.GetStats())
 
-		st := resp.Msg.GetStats()[0]
+		st := resp.GetStats()[0]
 		state.Queue = st.GetQueue()
 		state.Pipeline = st.GetPipeline()
 		state.Driver = st.GetDriver()
