@@ -61,29 +61,20 @@ jobs:
       - name: Install Go dependencies
         run: go mod download
 
+      - name: Start the broker
+        run: docker compose -f tests/env/docker-compose-nats.yaml up -d --wait
+
       - name: Run golang tests with coverage
         run: |
           cd tests
           mkdir ./coverage-ci
-
-          docker compose -f env/docker-compose-nats.yaml up -d
-          sleep 30
-
-          if [ "$(docker ps -q -f status=running -f name=nats_container)" ]; then
-          echo "NATS Docker container started successfully."
-             else
-                 echo "Failed to start NATS Docker container."
-                 exit 1
-          fi
-
-          go test -timeout 20m -v -race -cover -tags=debug -failfast -coverpkg=github.com/roadrunner-server/nats/v6 -coverprofile=./coverage-ci/nats_dur.out -covermode=atomic jobs_nats_durability_test.go
-          docker compose -f env/docker-compose-nats.yaml down
+          go test -timeout 20m -v -race -cover -tags=debug -run TestRedialAfterOutage -coverpkg=github.com/roadrunner-server/nats/v6/... -coverprofile=./coverage-ci/nats_dur.out -covermode=atomic ./...
 
       - name: Archive code coverage results
         uses: actions/upload-artifact@v7
         with:
-          name: coverage
-          path: ./tests/coverage-ci/nats_dur.out
+          name: coverage-durability
+          path: ./tests/coverage-ci/
 
   codecov:
     name: Upload codecov
@@ -99,8 +90,9 @@ jobs:
       - name: Download code coverage results
         uses: actions/download-artifact@v8
         with:
-          name: coverage
+          pattern: coverage-*
           path: coverage
+          merge-multiple: true
       - run: |
           echo 'mode: atomic' > summary.txt
           tail -q -n +2 coverage/*.out >> summary.txt
@@ -112,6 +104,12 @@ jobs:
             }
           ' summary.txt > summary.filtered.txt
           mv summary.filtered.txt summary.txt
+          # a profile that maps to no plugin source uploads fine and reports 0%
+          blocks=$(($(wc -l < summary.txt) - 1))
+          if [ "$blocks" -lt 10 ]; then
+            echo "::error::coverage summary holds $blocks blocks, the profile does not map to plugin sources"
+            exit 1
+          fi
 
       - name: upload to codecov
         uses: codecov/codecov-action@v7 # Docs: <https://github.com/codecov/codecov-action>
