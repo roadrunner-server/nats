@@ -1,5 +1,8 @@
 version: '3'
 
+rpc:
+  listen: tcp://127.0.0.1:6222
+
 server:
   command: "php php_test_files/jobs/jobs_ok_with_subject_header.php"
   relay: "pipes"

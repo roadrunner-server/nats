@@ -1,40 +1,23 @@
 services:
   nats:
-    image: nats:latest
-    container_name: nats_container
-    command:
-      - "-js"
+    image: nats:2.12-alpine
+    # -js enables jetstream, -m exposes the monitoring endpoint the healthcheck uses
+    command: ["-js", "-m", "8222"]
     ports:
       - "127.0.0.1:4222:4222"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8222/healthz"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
 
-  prometheus:
-    image: prom/prometheus
+  # fronts nats for the durability (redial) test; bridged rather than host
+  # networked so the api and the proxied port are reachable off Linux too
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:2.12.0
+    depends_on:
+      nats:
+        condition: service_healthy
     ports:
-      - "9090:9090"
-
-  collector:
-    image: otel/opentelemetry-collector-contrib
-    command: [ "--config=/etc/otel-collector-config.yml" ]
-    volumes:
-      - ./otel-collector-config.yml:/etc/otel-collector-config.yml
-    ports:
-      - "4318:4318"
-
-  toxicproxy:
-    image: shopify/toxiproxy:latest
-    network_mode: "host"
-
-  zipkin:
-    image: openzipkin/zipkin-slim
-    ports:
-      - "9411:9411"
-
-  jaeger:
-    image: jaegertracing/all-in-one:latest
-    ports:
-      - "16686:16686"
-      - "4319:4318"
-      - "4320:4317"
-    environment:
-      - LOG_LEVEL=debug
-      - COLLECTOR_OTLP_ENABLED=true
+      - "127.0.0.1:8474:8474"
+      - "127.0.0.1:19224:19224"
