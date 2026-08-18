@@ -14,11 +14,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	jobsProto "github.com/roadrunner-server/api-go/v6/jobs/v2"
+	jobsProto "github.com/roadrunner-server/api-go/v6/jobs/v1"
 	jobState "github.com/roadrunner-server/api-plugins/v6/jobs"
 	goridgeRpc "github.com/roadrunner-server/goridge/v4/pkg/rpc"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 const (
@@ -48,7 +47,7 @@ func ResumePipes(address string, pipes ...string) func(t *testing.T) {
 		client := NewJobsClient(t, address)
 		require.NoError(t, client.Call("jobs.Resume",
 			&jobsProto.Pipelines{Pipelines: slices.Clone(pipes)},
-			&jobsProto.JobsHandlerResponse{}))
+			&jobsProto.Empty{}))
 	}
 }
 
@@ -57,7 +56,7 @@ func PausePipelines(address string, pipes ...string) func(t *testing.T) {
 		client := NewJobsClient(t, address)
 		require.NoError(t, client.Call("jobs.Pause",
 			&jobsProto.Pipelines{Pipelines: slices.Clone(pipes)},
-			&jobsProto.JobsHandlerResponse{}))
+			&jobsProto.Empty{}))
 	}
 }
 
@@ -75,7 +74,7 @@ func PushToPipe(pipeline string, autoAck bool, address string) func(t *testing.T
 		client := NewJobsClient(t, address)
 		require.NoError(t, client.Call("jobs.Push",
 			&jobsProto.PushRequest{Job: dummyJob(pipeline, autoAck)},
-			&jobsProto.JobsHandlerResponse{}))
+			&jobsProto.Empty{}))
 	}
 }
 
@@ -89,7 +88,7 @@ func PushEventually(t *testing.T, address string, pipeline string) {
 
 		return client.Call("jobs.Push",
 			&jobsProto.PushRequest{Job: dummyJob(pipeline, false)},
-			&jobsProto.JobsHandlerResponse{}) == nil
+			&jobsProto.Empty{}) == nil
 	}, redialTimeout, redialTick, "the driver never recovered after the outage")
 }
 
@@ -98,7 +97,7 @@ func dummyJob(pipeline string, autoAck bool) *jobsProto.Job {
 		Job:     "some/php/namespace",
 		Id:      uuid.NewString(),
 		Payload: []byte(`{"hello":"world"}`),
-		Headers: map[string]*jobsProto.JobHeaderValue{"test": {Values: []string{"test2"}}},
+		Headers: map[string]*jobsProto.HeaderValue{"test": {Value: []string{"test2"}}},
 		Options: &jobsProto.Options{
 			AutoAck:  autoAck,
 			Priority: 1,
@@ -134,7 +133,7 @@ func Declare(t *testing.T, address string, pipeline map[string]string) error {
 
 	return client.Call("jobs.Declare",
 		&jobsProto.DeclareRequest{Pipeline: pipeline},
-		&jobsProto.JobsHandlerResponse{})
+		&jobsProto.Empty{})
 }
 
 // StatsFor returns the state the jobs plugin reports for one pipeline. Picking
@@ -143,7 +142,7 @@ func StatsFor(t *testing.T, address string, pipeline string) *jobState.State {
 	t.Helper()
 
 	resp := &jobsProto.Stats{}
-	require.NoError(t, NewJobsClient(t, address).Call("jobs.GetStats", &emptypb.Empty{}, resp))
+	require.NoError(t, NewJobsClient(t, address).Call("jobs.Stat", &jobsProto.Empty{}, resp))
 
 	for _, st := range resp.GetStats() {
 		if st.GetPipeline() != pipeline {
