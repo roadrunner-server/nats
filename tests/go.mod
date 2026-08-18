@@ -5,7 +5,6 @@ go 1.26
 toolchain go1.26.5
 
 require (
-	github.com/Shopify/toxiproxy/v2 v2.12.0
 	github.com/google/uuid v1.6.0
 	github.com/nats-io/nats.go v1.53.1
 	github.com/roadrunner-server/api-go/v6 v6.0.0-beta.13
@@ -13,7 +12,7 @@ require (
 	github.com/roadrunner-server/config/v6 v6.0.0-beta.3
 	github.com/roadrunner-server/endure/v2 v2.6.2
 	github.com/roadrunner-server/goridge/v4 v4.0.0-beta.3
-	github.com/roadrunner-server/informer/v6 v6.0.0-beta.3
+	github.com/roadrunner-server/informer/v6 v6.0.0-beta.4
 	github.com/roadrunner-server/jobs/v6 v6.0.0-beta.8
 	github.com/roadrunner-server/logger/v6 v6.0.0-beta.3
 	github.com/roadrunner-server/nats/v6 v6.0.0
@@ -22,7 +21,6 @@ require (
 	github.com/roadrunner-server/server/v6 v6.0.0-beta.6
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/otel/sdk v1.45.0
-	google.golang.org/genproto v0.0.0-20260810153831-ec0a7760b754
 	google.golang.org/protobuf v1.36.12
 )
 
@@ -80,5 +78,6 @@ require (
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
+	google.golang.org/genproto v0.0.0-20260810153831-ec0a7760b754 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
