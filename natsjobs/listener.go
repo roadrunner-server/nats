@@ -1,17 +1,18 @@
 package natsjobs
 
 import (
+	"cmp"
 	"context"
 	"time"
+	"uuid"
 
-	"github.com/google/uuid"
 	"github.com/nats-io/nats.go/jetstream"
 	"go.opentelemetry.io/otel/propagation"
 )
 
 // blocking
 func (c *Driver) listenerInit() error {
-	id := uuid.NewString()
+	id := uuid.NewV4().String()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	cons, err := c.jetstream.CreateConsumer(ctx, c.streamID, jetstream.ConsumerConfig{
@@ -101,9 +102,7 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 					item.Options.deleteAfterAck = c.deleteAfterAck
 				}
 
-				if item.Priority() == 0 {
-					item.Options.Priority = c.priority
-				}
+				item.Options.Priority = cmp.Or(item.Priority(), c.priority)
 
 				if item.Options.AutoAck {
 					c.log.Debug("auto_ack option enabled")
