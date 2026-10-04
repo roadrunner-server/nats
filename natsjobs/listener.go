@@ -33,7 +33,6 @@ func (c *Driver) listenerInit() error {
 	}
 	c.consumerLock.Lock()
 	c.consumer = &consumer{
-		id:      id,
 		jsc:     cons,
 		context: consume,
 	}
@@ -99,7 +98,6 @@ func (c *Driver) listenerStart() { //nolint:gocognit
 				// needed only if delete after ack is true
 				if c.deleteAfterAck {
 					item.Options.sub = c.stream
-					item.Options.stream = c.streamID
 					item.Options.deleteAfterAck = c.deleteAfterAck
 				}
 
