@@ -49,7 +49,6 @@ type Options struct {
 	nak            func() error
 	term           func() error
 	nakWithDelay   func(time.Duration) error
-	stream         string
 	seq            uint64
 	sub            jetstream.Stream
 }

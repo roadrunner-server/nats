@@ -59,15 +59,12 @@ type Driver struct {
 	subject            string
 	streamID           string
 	prefetch           int
-	rateLimit          uint64
 	deleteAfterAck     bool
-	deliverNew         bool
 	deleteStreamOnStop bool
 	ackWait            time.Duration
 }
 
 type consumer struct {
-	id      string
 	jsc     jetstream.Consumer
 	context jetstream.ConsumeContext
 }
@@ -151,9 +148,7 @@ func FromConfig(_ context.Context, tracer *sdktrace.TracerProvider, configKey st
 		deleteAfterAck:     conf.DeleteAfterAck,
 		deleteStreamOnStop: conf.DeleteStreamOnStop,
 		prefetch:           conf.Prefetch,
-		deliverNew:         conf.DeliverNew,
 		ackWait:            conf.AckWait,
-		rateLimit:          conf.RateLimit,
 		msgCh:              make(chan jetstream.Msg, conf.Prefetch),
 	}
 
@@ -234,10 +229,8 @@ func FromPipeline(_ context.Context, tracer *sdktrace.TracerProvider, pipe jobs.
 		streamID:           defStream,
 		prefetch:           pipe.Int(pipePrefetch, 100),
 		deleteAfterAck:     pipe.Bool(pipeDeleteAfterAck, false),
-		deliverNew:         pipe.Bool(pipeDeliverNew, false),
 		deleteStreamOnStop: pipe.Bool(pipeDeleteStreamOnStop, false),
 		ackWait:            time.Duration(pipe.Int(pipeAckWait, 30)) * time.Second,
-		rateLimit:          uint64(pipe.Int(pipeRateLimit, 1000)), //nolint:gosec
 		msgCh:              make(chan jetstream.Msg, pipe.Int(pipePrefetch, 100)),
 	}
 

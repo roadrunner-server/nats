@@ -13,8 +13,6 @@ const (
 	pipeStream             string = "stream"
 	pipePrefetch           string = "prefetch"
 	pipeDeleteAfterAck     string = "delete_after_ack"
-	pipeDeliverNew         string = "deliver_new"
-	pipeRateLimit          string = "rate_limit"
 	pipeDeleteStreamOnStop string = "delete_stream_on_stop"
 	pipeAckWait            string = "ack_wait"
 )
