@@ -11,9 +11,9 @@ require (
 	github.com/roadrunner-server/api-plugins/v6 v6.0.0
 	github.com/roadrunner-server/config/v6 v6.0.0-beta.4
 	github.com/roadrunner-server/endure/v2 v2.6.2
-	github.com/roadrunner-server/goridge/v4 v4.0.0-beta.3
+	github.com/roadrunner-server/goridge/v4 v4.0.0
 	github.com/roadrunner-server/informer/v6 v6.0.0-beta.5
-	github.com/roadrunner-server/jobs/v6 v6.0.0-beta.10
+	github.com/roadrunner-server/jobs/v6 v6.0.1
 	github.com/roadrunner-server/logger/v6 v6.0.0-beta.4
 	github.com/roadrunner-server/nats/v6 v6.0.0
 	github.com/roadrunner-server/resetter/v6 v6.0.0-beta.6
@@ -51,7 +51,7 @@ require (
 	github.com/roadrunner-server/errors v1.6.0 // indirect
 	github.com/roadrunner-server/events v1.0.1 // indirect
 	github.com/roadrunner-server/pool/v2 v2.0.0-beta.1 // indirect
-	github.com/roadrunner-server/priority_queue v1.0.6 // indirect
+	github.com/roadrunner-server/priority_queue v1.1.0 // indirect
 	github.com/roadrunner-server/tcplisten v1.6.0 // indirect
 	github.com/sagikazarmark/locafero v0.12.0 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
