@@ -1,7 +1,7 @@
 package natsjobs
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 
 	"github.com/google/uuid"
 )
